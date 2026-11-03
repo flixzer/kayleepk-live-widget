@@ -1,0 +1,67 @@
+name: build & release
+
+# Push to main: build check + installer artifact.
+# Push a tag vX.Y.Z (must equal overlay-studio/Cargo.toml version): build + GitHub Release,
+# which the app's auto-updater picks up on next launch.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: overlay-studio
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path overlay-studio/Cargo.toml -Pattern '^version\s*=\s*"(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+          "version=$v" >> $env:GITHUB_OUTPUT
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$v") {
+            throw "Tag $env:GITHUB_REF_NAME does not match Cargo.toml version $v"
+          }
+
+      - name: Test
+        working-directory: overlay-studio
+        run: cargo test --release
+
+      - name: Build
+        working-directory: overlay-studio
+        run: cargo build --release
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Build installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.version }} installer\overlay-studio.iss'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OverlayStudio-${{ steps.ver.outputs.version }}
+          path: |
+            dist/OverlayStudio-Setup.exe
+            overlay-studio/target/release/overlay-studio.exe
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Overlay Studio ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/OverlayStudio-Setup.exe

@@ -1,0 +1,27 @@
+[package]
+name = "overlay-studio"
+version = "0.1.0"
+edition = "2021"
+description = "Moonlit Blossom live overlays for OBS — YouTube chat (innertube) + EasyDonate"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+reqwest = { version = "0.13", features = ["json", "gzip", "query"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+rust-embed = "8"
+mime_guess = "2"
+futures-util = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }
+dirs = "7"
+chrono = "0.4"
+urlencoding = "2"
+tao = "0.37"
+wry = "0.57"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

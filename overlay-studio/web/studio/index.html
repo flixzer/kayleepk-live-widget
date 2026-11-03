@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>Overlay Studio</title>
+  <link rel="stylesheet" href="/assets/shared/theme.css">
+  <link rel="stylesheet" href="/assets/studio/studio.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="studio-sky"></canvas>
+    <aside class="side">
+      <div class="brand">
+        <div class="brand-logo"></div>
+        <div>
+          <div class="brand-name">Overlay Studio</div>
+          <div class="brand-sub">OBS · YOUTUBE LIVE · EASYDONATE</div>
+        </div>
+      </div>
+
+      <div class="card live-card">
+        <div class="lc-top">
+          <span class="lc-pill" id="lc-pill">OFFLINE</span>
+          <span class="lc-viewers" id="lc-viewers"></span>
+        </div>
+        <div class="lc-title" id="lc-title">ยังไม่ได้เชื่อมต่อไลฟ์</div>
+        <div class="lc-rows">
+          <div>YouTube แชท: <b id="lc-yt">—</b></div>
+          <div>EasyDonate: <b id="lc-ed">—</b></div>
+        </div>
+      </div>
+
+      <div class="card src-card">
+        <div class="tiny-label">แหล่งแชท</div>
+        <div class="src-row">
+          <div class="src-text">
+            <div class="src-mode" id="src-mode">🔄 อัตโนมัติ</div>
+            <div class="src-title" id="src-title">—</div>
+          </div>
+          <button class="btn btn-sm" data-goto="youtube">เปลี่ยน</button>
+        </div>
+      </div>
+
+      <div class="tiny-label nav-label">ซีน & การตั้งค่า</div>
+      <nav class="nav" id="nav"></nav>
+
+      <div class="side-foot">
+        <button class="btn btn-ghost" id="open-folder">📁 โฟลเดอร์ตั้งค่า</button>
+        <span class="host" id="host"></span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <h1 id="page-title"></h1>
+        <div class="page-sub" id="page-sub"></div>
+      </header>
+      <section class="grid">
+        <div class="col-left">
+          <div class="preview-card">
+            <div class="preview-box" id="preview-box"></div>
+          </div>
+          <div class="url-row" id="url-row">
+            <span class="chip" id="url-size">1920 × 1080</span>
+            <code class="url" id="url-text"></code>
+            <button class="btn btn-primary" id="copy-url">📋 คัดลอก URL</button>
+            <button class="btn" id="open-url" title="เปิดในเบราว์เซอร์">↗</button>
+            <button class="btn" id="reload-preview" title="รีโหลดพรีวิว">↻</button>
+          </div>
+          <div class="extras card-soft" id="extras"></div>
+        </div>
+        <div class="col-right card-soft" id="settings"></div>
+      </section>
+    </main>
+
+    <div class="update-banner" id="update-banner"></div>
+    <div class="toast" id="toast"></div>
+    <div class="modal" id="modal"><div class="modal-card"><button class="btn btn-sm modal-x" id="modal-x">✕</button><pre id="modal-body"></pre></div></div>
+  </div>
+  <script src="/assets/shared/core.js"></script>
+  <script src="/assets/shared/fx.js"></script>
+  <script src="/assets/studio/studio.js"></script>
+</body>
+</html>
