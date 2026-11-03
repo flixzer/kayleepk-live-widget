@@ -127,7 +127,7 @@
       es.addEventListener("hello", (e) => {
         const d = JSON.parse(e.data);
         S.config = d.config; S.ui = normalizeUI(d.config.ui); S.live = d.live; S.donate = d.donate;
-        S.chat = d.chat; S.ed_status = d.ed_status; S.port = d.port; S.port_fallback = d.port_fallback; S.connected = true;
+        S.chat = d.chat; S.ed_status = d.ed_status; S.countdown = d.countdown; S.port = d.port; S.port_fallback = d.port_fallback; S.connected = true;
         Bus.fire("config", S.config); Bus.fire("live", S.live); Bus.fire("donate_state", S.donate);
         Bus.fire("ed_status", S.ed_status); Bus.fire("hello", d);
       });
@@ -141,6 +141,7 @@
         chat_clear: () => { S.chat = []; },
         donation: () => {},
         update: (d) => { S.update = d; },
+        countdown: (d) => { S.countdown = d; },
       };
       for (const [name, apply] of Object.entries(simple)) {
         es.addEventListener(name, (e) => { const d = JSON.parse(e.data); apply(d); Bus.fire(name, d); });

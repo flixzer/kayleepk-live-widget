@@ -143,8 +143,10 @@
   }
   function refreshShowIf(root) {
     for (const n of $$("[data-show-if]", root)) {
-      const [p, v] = n.dataset.showIf.split("=");
-      n.style.display = String(getPath(p)) === v ? "" : "none";
+      // "path=value" or "path!=value"
+      const neg = n.dataset.showIf.includes("!=");
+      const [p, v] = n.dataset.showIf.split(neg ? "!=" : "=");
+      n.style.display = (String(getPath(p)) === v) !== neg ? "" : "none";
     }
   }
 
@@ -247,6 +249,17 @@
       cfg.ui.profile.socials.push({ kind: "youtube", handle: "" }); save(); go("profile");
     } else if (act === "del-social") {
       cfg.ui.profile.socials.splice(Number(b.dataset.i), 1); save(); go("profile");
+    } else if (act === "cd-toggle" || act === "cd-reset" || act === "cd-add") {
+      const c = Bus.state.countdown || {};
+      const ms = (Number(cfg.ui.scenes.starting.countdownMin) || 0) * 60000;
+      let body;
+      if (act === "cd-reset") body = { action: "reset", ms };
+      else if (act === "cd-add") body = { action: "add", ms: Number(b.dataset.ms) };
+      else if (c.running) body = { action: "pause" };
+      else if (c.remaining_ms == null || c.remaining_ms <= 0) body = { action: "start", ms };
+      else body = { action: "resume" };
+      Bus.state.countdown = await post("/api/countdown", body);
+      renderCountdown();
     } else if (act === "reset-scene") {
       cfg.ui.scenes[b.dataset.scene] = clone(DEFAULT_UI.scenes[b.dataset.scene]); cfg.ui = OS.normalizeUI(cfg.ui); save(true); go(b.dataset.scene);
     }
@@ -350,8 +363,17 @@
         ${F.text("ui.scenes.starting.title", "หัวข้อใหญ่")}
         ${F.text("ui.scenes.starting.tagline", "ข้อความด้านล่าง")}
         ${F.sec("นับถอยหลัง")}
-        ${F.select("ui.scenes.starting.countdownMode", "รูปแบบ", [["load", "นับจากตอนเปิดซีน"], ["time", "นับถึงเวลาที่กำหนด"]])}
-        <div data-show-if="ui.scenes.starting.countdownMode=load">${F.num("ui.scenes.starting.countdownMin", "จำนวนนาที", { min: 0, max: 180 })}</div>
+        ${F.select("ui.scenes.starting.countdownMode", "รูปแบบ", [["manual", "ควบคุมด้วยปุ่ม (เริ่ม / หยุด / รีเซ็ต)"], ["load", "นับจากตอนเปิดซีน"], ["time", "นับถึงเวลาที่กำหนด"]])}
+        <div data-show-if="ui.scenes.starting.countdownMode!=time">${F.num("ui.scenes.starting.countdownMin", "จำนวนนาที", { min: 0, max: 180 })}</div>
+        <div class="cd-ctl" data-show-if="ui.scenes.starting.countdownMode=manual">
+          <div class="cd-ctl-time" id="cd-ctl-time">--:--</div>
+          <div class="btn-row">
+            <button class="btn btn-primary" data-act="cd-toggle" id="cd-toggle">▶ เริ่ม</button>
+            <button class="btn" data-act="cd-reset">↺ รีเซ็ต</button>
+            <button class="btn btn-sm" data-act="cd-add" data-ms="-60000">−1 นาที</button>
+            <button class="btn btn-sm" data-act="cd-add" data-ms="60000">+1 นาที</button>
+          </div>
+        </div>
         ${F.time("ui.scenes.starting.countdownTime", "เริ่มไลฟ์เวลา", "ui.scenes.starting.countdownMode=time")}
         ${F.text("ui.scenes.starting.countdownDone", "ข้อความเมื่อนับครบ")}
         ${F.sec("องค์ประกอบ")}
@@ -557,6 +579,23 @@
     b.classList.toggle("show", !!msg && u.state !== "checking");
   }
   Bus.on("update", renderUpdate);
+
+  // ---------------------------------------------------------------- countdown controls (Starting Soon)
+  function cdLeft() {
+    const c = Bus.state.countdown || {};
+    if (c.running) return Math.max(0, c.end_at - Date.now());
+    return c.remaining_ms ?? (Number(cfg?.ui.scenes.starting.countdownMin) || 0) * 60000;
+  }
+  function renderCountdown() {
+    const t = $("#cd-ctl-time"), b = $("#cd-toggle");
+    if (!t || !b) return;
+    const c = Bus.state.countdown || {}, left = cdLeft();
+    t.textContent = OS.clock(left);
+    t.classList.toggle("running", !!c.running);
+    b.textContent = c.running ? "⏸ หยุดชั่วคราว" : c.remaining_ms == null || c.remaining_ms <= 0 ? "▶ เริ่ม" : "▶ นับต่อ";
+  }
+  Bus.on("countdown", renderCountdown);
+  setInterval(renderCountdown, 250);
   Bus.on("hello", (d) => {
     renderUpdate(d.update);
     if (d.port_fallback) toast(`พอร์ตที่ตั้งไว้ถูกใช้อยู่ — ใช้พอร์ต ${d.port} แทน`);

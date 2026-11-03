@@ -31,6 +31,8 @@ pub struct AppState {
     pub ed_raw: Mutex<Map<String, Value>>,
     /// {state, version, latest?, message?} from the updater
     pub update: Mutex<Value>,
+    /// Starting-scene countdown driven by the studio buttons: {running, end_at, remaining_ms}
+    pub countdown: Mutex<Value>,
     pub yt_restart: Notify,
     pub ed_restart: Notify,
 }
@@ -53,6 +55,7 @@ impl AppState {
             ed_status: Mutex::new(json!({"state": "off"})),
             ed_raw: Mutex::new(Map::new()),
             update: Mutex::new(json!({"state": "off", "version": crate::updater::VERSION})),
+            countdown: Mutex::new(json!({"running": false, "end_at": null, "remaining_ms": null})),
             yt_restart: Notify::new(),
             ed_restart: Notify::new(),
         })
@@ -158,6 +161,7 @@ impl AppState {
             "ed_status": self.ed_status.lock().unwrap().clone(),
             "chat": self.chat.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
             "update": self.update.lock().unwrap().clone(),
+            "countdown": self.countdown.lock().unwrap().clone(),
             "port": self.port,
             "port_fallback": self.port_fallback,
         })

@@ -128,21 +128,30 @@
       Wd.AlertQueue(place(el("div"), 0, 0, W, 400), { enabled: () => !withChat || ui().alerts.toastInChatScenes });
 
       const loadedAt = Date.now();
-      const target = () => {
-        const s = sc();
+      // Milliseconds left for the current mode: from scene load, to a clock time, or the
+      // shared countdown driven by the studio's start / pause / reset buttons.
+      const leftMs = () => {
+        const s = sc(), now = Date.now();
+        if (s.countdownMode === "manual") {
+          const c = Bus.state.countdown || {};
+          if (c.running) return c.end_at - now;
+          return c.remaining_ms ?? (Number(s.countdownMin) || 0) * 60000;
+        }
         if (s.countdownMode === "time") {
           const [h, m] = String(s.countdownTime || "20:00").split(":").map(Number);
           const d = new Date();
           d.setHours(h || 0, m || 0, 0, 0);
-          return d.getTime();
+          return d.getTime() - now;
         }
-        return loadedAt + (Number(s.countdownMin) || 0) * 60000;
+        return loadedAt + (Number(s.countdownMin) || 0) * 60000 - now;
       };
       const cdT = hero.querySelector(".cd-time"), cd = hero.querySelector(".countdown");
       setInterval(() => {
-        const left = target() - Date.now();
+        const left = leftMs();
+        const paused = sc().countdownMode === "manual" && !(Bus.state.countdown || {}).running;
         const done = left <= 0;
         cd.classList.toggle("done", done);
+        cd.classList.toggle("paused", paused && !done);
         cdT.textContent = done ? sc().countdownDone || "กำลังจะเริ่มแล้ว!" : clock(left);
       }, 250);
       Bus.on("config", () => {
@@ -337,6 +346,7 @@
         const snap = await fetch("/api/state").then((r) => r.json());
         Bus.state.config = snap.config;
         Bus.state.ui = OS.normalizeUI(snap.config.ui);
+        Bus.state.countdown = snap.countdown;
         break;
       } catch {
         await new Promise((r) => setTimeout(r, 2000)); // app not running yet; OBS keeps the source loaded

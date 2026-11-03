@@ -40,6 +40,7 @@ pub fn router(state: Shared) -> Router {
         .route("/api/test/chat", post(test_chat))
         .route("/api/chat/clear", post(chat_clear))
         .route("/api/open-folder", post(open_folder))
+        .route("/api/countdown", post(countdown))
         .fallback(static_file)
         .with_state(state)
 }
@@ -217,4 +218,38 @@ async fn open_folder(State(st): State<Shared>) -> Json<Value> {
     #[cfg(all(unix, not(target_os = "macos")))]
     let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
     Json(json!({"ok": true, "path": dir}))
+}
+
+#[derive(Deserialize)]
+struct CountdownCmd {
+    /// start | pause | resume | reset | add
+    action: String,
+    ms: Option<i64>,
+}
+
+/// One countdown shared by every open Starting scene, controlled from the studio.
+async fn countdown(State(st): State<Shared>, Json(c): Json<CountdownCmd>) -> Json<Value> {
+    let now = chrono::Local::now().timestamp_millis();
+    let v = {
+        let mut cd = st.countdown.lock().unwrap();
+        let running = cd["running"].as_bool().unwrap_or(false);
+        let left = if running { cd["end_at"].as_i64().unwrap_or(now) - now } else { cd["remaining_ms"].as_i64().unwrap_or(0) };
+        let left = left.max(0);
+        let ms = c.ms.unwrap_or(0).max(0);
+        *cd = match c.action.as_str() {
+            "start" => json!({"running": true, "end_at": now + ms, "remaining_ms": ms}),
+            "pause" if running => json!({"running": false, "end_at": null, "remaining_ms": left}),
+            "resume" if !running => json!({"running": true, "end_at": now + left, "remaining_ms": left}),
+            "reset" => json!({"running": false, "end_at": null, "remaining_ms": ms}),
+            "add" => {
+                let delta = c.ms.unwrap_or(0);
+                let next = (left + delta).max(0);
+                if running { json!({"running": true, "end_at": now + next, "remaining_ms": next}) } else { json!({"running": false, "end_at": null, "remaining_ms": next}) }
+            }
+            _ => cd.clone(),
+        };
+        cd.clone()
+    };
+    st.emit("countdown", &v);
+    Json(v)
 }

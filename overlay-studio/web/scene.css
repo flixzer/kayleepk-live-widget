@@ -416,3 +416,6 @@ body.fluid .chat-list { padding: 14px 22px; }
 
 /* gameplay HUD items */
 .hud-item { z-index: 5; transform-origin: 0 0; }
+
+/* countdown paused by the studio */
+.countdown.paused .cd-time { animation: breathe 1.6s ease-in-out infinite; opacity: .75; }
