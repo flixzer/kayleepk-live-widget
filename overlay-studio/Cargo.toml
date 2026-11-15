@@ -1,6 +1,6 @@
 [package]
 name = "overlay-studio"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "Starry Night live overlays for OBS — YouTube chat (innertube) + EasyDonate"
 
