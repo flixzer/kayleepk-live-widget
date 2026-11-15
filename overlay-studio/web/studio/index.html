@@ -14,7 +14,7 @@
         <div class="brand-logo"></div>
         <div>
           <div class="brand-name">Overlay Studio</div>
-          <div class="brand-sub">OBS · YOUTUBE LIVE · EASYDONATE</div>
+          <div class="brand-sub">YOUTUBE · TWITCH · EASYDONATE</div>
         </div>
       </div>
 
@@ -26,6 +26,7 @@
         <div class="lc-title" id="lc-title">ยังไม่ได้เชื่อมต่อไลฟ์</div>
         <div class="lc-rows">
           <div>YouTube แชท: <b id="lc-yt">—</b></div>
+          <div>Twitch แชท: <b id="lc-tw">—</b></div>
           <div>EasyDonate: <b id="lc-ed">—</b></div>
         </div>
       </div>
@@ -34,7 +35,7 @@
         <div class="tiny-label">แหล่งแชท</div>
         <div class="src-row">
           <div class="src-text">
-            <div class="src-mode" id="src-mode">🔄 อัตโนมัติ</div>
+            <div class="src-mode" id="src-mode">อัตโนมัติ</div>
             <div class="src-title" id="src-title">—</div>
           </div>
           <button class="btn btn-sm" data-goto="youtube">เปลี่ยน</button>
@@ -45,7 +46,7 @@
       <nav class="nav" id="nav"></nav>
 
       <div class="side-foot">
-        <button class="btn btn-ghost" id="open-folder">📁 โฟลเดอร์ตั้งค่า</button>
+        <button class="btn btn-ghost" id="open-folder" data-ic="folder">โฟลเดอร์ตั้งค่า</button>
         <span class="host" id="host"></span>
       </div>
     </aside>
@@ -63,9 +64,9 @@
           <div class="url-row" id="url-row">
             <span class="chip" id="url-size">1920 × 1080</span>
             <code class="url" id="url-text"></code>
-            <button class="btn btn-primary" id="copy-url">📋 คัดลอก URL</button>
-            <button class="btn" id="open-url" title="เปิดในเบราว์เซอร์">↗</button>
-            <button class="btn" id="reload-preview" title="รีโหลดพรีวิว">↻</button>
+            <button class="btn btn-primary" id="copy-url" data-ic="copy">คัดลอก URL</button>
+            <button class="btn btn-icon" id="open-url" title="เปิดในเบราว์เซอร์" data-ic="external"></button>
+            <button class="btn btn-icon" id="reload-preview" title="รีโหลดพรีวิว" data-ic="refresh"></button>
           </div>
           <div class="extras card-soft" id="extras"></div>
         </div>
@@ -75,7 +76,7 @@
 
     <div class="update-banner" id="update-banner"></div>
     <div class="toast" id="toast"></div>
-    <div class="modal" id="modal"><div class="modal-card"><button class="btn btn-sm modal-x" id="modal-x">✕</button><pre id="modal-body"></pre></div></div>
+    <div class="modal" id="modal"><div class="modal-card"><button class="btn btn-sm btn-icon modal-x" id="modal-x" title="ปิด" data-ic="x"></button><pre id="modal-body"></pre></div></div>
   </div>
   <script src="/assets/shared/core.js"></script>
   <script src="/assets/shared/fx.js"></script>

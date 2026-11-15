@@ -1,15 +1,16 @@
-# Overlay Studio — Moonlit Blossom
+# Overlay Studio — Starry Night
 
-โปรแกรม Rust สำหรับทำ Overlay ไลฟ์สดใน OBS ธีมกลางคืน ดอกไม้เรืองแสง กลีบดอกไม้ร่วง และหิ่งห้อย
-ดึงแชท YouTube ผ่าน innertube (ไม่ต้องใช้ API key) และดึงโดเนทจาก EasyDonate API
+โปรแกรม Rust สำหรับทำ Overlay ไลฟ์สดใน OBS ธีมท้องฟ้าดวงดาวยามค่ำคืน ทางช้างเผือก ดาวกะพริบ ดาวตก และกลุ่มดาว
+ดึงแชท YouTube ผ่าน innertube และแชท + ยอดคนดู Twitch ผ่าน IRC/GQL สาธารณะ (ทั้งสองแบบไม่ต้องใช้ API key) และดึงโดเนทจาก EasyDonate API
 
 ## วิธีใช้
 
 1. เปิด `overlay-studio.exe` — หน้าต่างจะขยายเต็มจอ (ปรับขนาดไม่ได้) เนื้อหาเป็นสัดส่วน 16:9
 2. **YouTube Live** — ใส่ `@ชื่อช่อง` แล้วกด *ค้นหาไลฟ์* จากนั้นเลือกไลฟ์ หรือเลือก *อัตโนมัติ* ให้ระบบหาไลฟ์ที่ออนอยู่เอง
-3. **EasyDonate** — ใส่ API key (`ezdn_v1_…`) ที่สร้างจาก easydonate.app › หน้าจัดการ › โซนผู้พัฒนา › API Keys
+3. **Twitch** (ไม่บังคับ) — ใส่ชื่อช่อง เช่น `kayleepk` แล้วกด *เชื่อมต่อ* แชท Twitch จะขึ้นในช่องแชทเดียวกับ YouTube และยอดคนดูรวมสองแพลตฟอร์ม
+4. **EasyDonate** — ใส่ API key (`ezdn_v1_…`) ที่สร้างจาก easydonate.app › หน้าจัดการ › โซนผู้พัฒนา › API Keys
    ให้ scope `read:donations` และ `read:widgets` (เพิ่ม `read:profile` ถ้าต้องการชื่อบัญชี)
-4. แต่ละซีนกด **คัดลอก URL** แล้วใน OBS เพิ่ม *Browser Source* ขนาด **1920 × 1080**
+5. แต่ละซีนกด **คัดลอก URL** แล้วใน OBS เพิ่ม *Browser Source* ขนาด **1920 × 1080**
 
 | ซีน | URL | หมายเหตุ |
 | --- | --- | --- |
@@ -21,6 +22,17 @@
 | Alerts only | `/widget/alerts` | ป๊อปอัพโดเนทอย่างเดียว 1920 × 1080 |
 
 ทุกการตั้งค่าบันทึกอัตโนมัติที่ `%APPDATA%\OverlayStudio\config.json` และ overlay ใน OBS อัปเดตทันที
+
+## ข้อมูลจาก Twitch (ไม่ต้องใช้ API key)
+
+| ข้อมูล | วิธีดึง | ความถี่ |
+| --- | --- | --- |
+| แชท, Bits, Sub / Gift / Raid, ลบข้อความ / แบน | Twitch IRC `irc.chat.twitch.tv:6667` ล็อกอินแบบผู้ชม `justinfanNNNNN` (อ่านอย่างเดียว) | เรียลไทม์ |
+| ยอดคนดู ชื่อไลฟ์ หมวดเกม รูปช่อง | `POST https://gql.twitch.tv/gql` ด้วย Client-Id สาธารณะของหน้าเว็บ Twitch | ทุก 20 วินาที |
+
+- Bits ขึ้นเป็นการ์ดสีม่วงแบบเดียวกับ Super Chat · ป้าย Broadcaster / Mod / VIP / Sub · อีโมตแสดงเป็นรูป
+- ถ้าตั้งทั้ง YouTube และ Twitch จะมีไอคอนแพลตฟอร์มหน้าชื่อในแชท และยอดคนดูในซีนเป็นผลรวมสองแพลตฟอร์ม
+- เหมือน innertube คือเป็น endpoint ที่หน้าเว็บ Twitch ใช้เอง ไม่ใช่ API ทางการ — ถ้า Twitch เปลี่ยนระบบอาจต้องอัปเดตโปรแกรม
 
 ## ข้อมูลจาก EasyDonate
 
@@ -57,11 +69,12 @@ cargo build --release
 src/main.rs        หน้าต่าง (tao + wry/WebView2) และเริ่มเซิร์ฟเวอร์
 src/server.rs      HTTP + SSE (axum) เสิร์ฟ studio และ overlay
 src/youtube.rs     innertube: ค้นหาไลฟ์ของช่อง, ตรวจไลฟ์อัตโนมัติ, live chat, ยอดคนดู
+src/twitch.rs      Twitch: แชทผ่าน IRC แบบไม่ล็อกอิน, ยอดคนดู/ชื่อไลฟ์ผ่าน GQL
 src/easydonate.rs  EasyDonate API: โดเนทใหม่, Top, Latest, Goal, Timer
 src/state.rs       สถานะกลาง + event bus
 web/studio/        หน้าตั้งค่า
 web/scene.*        ซีนทั้งหมด
-web/shared/        ธีม, เอฟเฟกต์ (ท้องฟ้า กลีบดอกไม้ ดอกไม้เรืองแสง), วิดเจ็ต
+web/shared/        ธีม, เอฟเฟกต์ (ท้องฟ้า ทางช้างเผือก ดาวตก กลุ่มดาว ละอองดาว), วิดเจ็ต
 ```
 
 ## ติดตั้ง & อัปเดตอัตโนมัติ

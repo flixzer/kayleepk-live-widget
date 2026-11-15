@@ -4,6 +4,7 @@ mod config;
 mod easydonate;
 mod server;
 mod state;
+mod twitch;
 mod updater;
 mod youtube;
 
@@ -45,6 +46,7 @@ fn main() {
         axum::serve(listener, app).await.expect("server");
     });
     rt.spawn(youtube::supervisor(state.clone()));
+    rt.spawn(twitch::supervisor(state.clone()));
     rt.spawn(easydonate::supervisor(state.clone()));
     rt.spawn(updater::run(state.clone()));
 
@@ -86,36 +88,39 @@ fn run_window(url: &str) {
     });
 }
 
-/// Procedural 64×64 icon: a glowing five-petal blossom on a night-blue disc.
+/// Procedural 64×64 icon: a glowing four-point star (plus a small companion star)
+/// on a night-sky disc.
 fn app_icon() -> Icon {
     const N: u32 = 64;
+    // Concave four-point star: |x|^p + |y|^p <= L^p with p < 1. Returns coverage 0..1.
+    fn sparkle(dx: f32, dy: f32, l: f32) -> f32 {
+        const P: f32 = 0.55;
+        let d = (dx.abs().powf(P) + dy.abs().powf(P)).powf(1.0 / P);
+        ((l - d) / 1.5).clamp(0.0, 1.0)
+    }
     let mut px = Vec::with_capacity((N * N * 4) as usize);
     for y in 0..N {
         for x in 0..N {
             let dx = x as f32 - 31.5;
             let dy = y as f32 - 31.5;
             let r = (dx * dx + dy * dy).sqrt();
-            let a = dy.atan2(dx);
-            let petal = 22.0 * (0.55 + 0.45 * ((5.0 * a / 2.0).cos()).abs());
             let (mut cr, mut cg, mut cb, mut ca) = (0.0f32, 0.0, 0.0, 0.0);
             if r < 31.0 {
                 let t = y as f32 / N as f32;
-                cr = 28.0 + 40.0 * t;
-                cg = 30.0 + 30.0 * t;
-                cb = 92.0 + 80.0 * t;
+                cr = 10.0 + 30.0 * t;
+                cg = 14.0 + 26.0 * t;
+                cb = 60.0 + 90.0 * t;
                 ca = 255.0 * (31.0 - r).clamp(0.0, 1.0);
+                // soft halo around the star
+                let halo = (1.0 - r / 20.0).clamp(0.0, 1.0).powi(2) * 0.6;
+                cr += (190.0 - cr) * halo;
+                cg += (200.0 - cg) * halo;
+                cb += (255.0 - cb) * halo;
             }
-            if r < petal {
-                let w = ((petal - r) / 2.0).clamp(0.0, 1.0);
-                cr = cr * (1.0 - w) + 248.0 * w;
-                cg = cg * (1.0 - w) + 246.0 * w;
-                cb = cb * (1.0 - w) + 255.0 * w;
-            }
-            if r < 5.0 {
-                cr = 196.0;
-                cg = 186.0;
-                cb = 255.0;
-            }
+            let w = sparkle(dx, dy, 27.0).max(sparkle(x as f32 - 48.5, y as f32 - 15.5, 7.0)) * (ca / 255.0);
+            cr += (255.0 - cr) * w;
+            cg += (252.0 - cg) * w;
+            cb += (240.0 - cb) * w;
             px.extend_from_slice(&[cr as u8, cg as u8, cb as u8, ca as u8]);
         }
     }

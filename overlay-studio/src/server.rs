@@ -33,6 +33,7 @@ pub fn router(state: Shared) -> Router {
         .route("/api/yt/streams", get(yt_streams))
         .route("/api/yt/select", post(yt_select))
         .route("/api/yt/reconnect", post(yt_reconnect))
+        .route("/api/tw/reconnect", post(tw_reconnect))
         .route("/api/ed/test", post(ed_test))
         .route("/api/ed/raw", get(ed_raw))
         .route("/api/ed/refresh", post(ed_refresh))
@@ -136,6 +137,11 @@ async fn yt_reconnect(State(st): State<Shared>) -> Json<Value> {
     Json(json!({"ok": true}))
 }
 
+async fn tw_reconnect(State(st): State<Shared>) -> Json<Value> {
+    st.tw_restart.notify_waiters();
+    Json(json!({"ok": true}))
+}
+
 #[derive(Deserialize)]
 struct KeyBody {
     api_key: String,
@@ -179,15 +185,18 @@ struct TestChat {
     name: Option<String>,
     message: Option<String>,
     kind: Option<String>,
+    /// "youtube" (default) or "twitch"
+    source: Option<String>,
 }
 
 async fn test_chat(State(st): State<Shared>, Json(b): Json<TestChat>) -> Json<Value> {
     let now = chrono::Local::now().timestamp_millis();
     let kind = b.kind.unwrap_or_else(|| "text".into());
+    let twitch = b.source.as_deref() == Some("twitch");
     let mut m = json!({
         "id": format!("test-{now}"),
         "kind": kind,
-        "source": "youtube",
+        "source": if twitch { "twitch" } else { "youtube" },
         "ts": now,
         "name": b.name.unwrap_or_else(|| "@viewer".into()),
         "avatar": "",
@@ -195,7 +204,11 @@ async fn test_chat(State(st): State<Shared>, Json(b): Json<TestChat>) -> Json<Va
         "runs": [{"t": "text", "v": b.message.unwrap_or_else(|| "สวัสดีครับ 👋".into())}],
         "test": true,
     });
-    if kind == "superchat" {
+    if kind == "superchat" && twitch {
+        m["amount"] = json!("100 bits");
+        m["color"] = json!("rgba(145,70,255,1)");
+        m["header_color"] = json!("rgba(100,40,200,1)");
+    } else if kind == "superchat" {
         m["amount"] = json!("฿100.00");
         m["color"] = json!("rgba(255,202,40,1)");
     }

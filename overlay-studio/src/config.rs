@@ -9,6 +9,7 @@ pub struct Config {
     /// Check GitHub Releases on startup and install newer builds.
     pub auto_update: bool,
     pub youtube: YtCfg,
+    pub twitch: TwCfg,
     pub easydonate: EdCfg,
     /// Display settings owned by the web UI (profile, scenes, chat look, alerts).
     pub ui: Value,
@@ -20,6 +21,7 @@ impl Default for Config {
             port: 3939,
             auto_update: true,
             youtube: YtCfg::default(),
+            twitch: TwCfg::default(),
             easydonate: EdCfg::default(),
             ui: Value::Object(Default::default()),
         }
@@ -41,6 +43,13 @@ impl Default for YtCfg {
     fn default() -> Self {
         Self { channel: String::new(), mode: "auto".into(), video_id: String::new(), video_title: String::new() }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default)]
+pub struct TwCfg {
+    /// Twitch login or channel URL; empty = off
+    pub channel: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

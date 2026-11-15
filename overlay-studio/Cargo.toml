@@ -2,7 +2,7 @@
 name = "overlay-studio"
 version = "0.1.1"
 edition = "2021"
-description = "Moonlit Blossom live overlays for OBS — YouTube chat (innertube) + EasyDonate"
+description = "Starry Night live overlays for OBS — YouTube chat (innertube) + EasyDonate"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

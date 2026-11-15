@@ -1,15 +1,48 @@
 // Overlay Studio control panel.
 (function () {
-  const { Bus, esc, money2, compact, fitStage, deepMerge, clone, DEFAULT_UI, ICONS, ago } = OS;
+  const { Bus, esc, money2, compact, fitStage, deepMerge, clone, DEFAULT_UI, ICONS, ago, viewerTotals } = OS;
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const stage = $("#stage");
+
+  // ---------------------------------------------------------------- UI icons (inline SVG, follow currentColor)
+  const ICON_PATHS = {
+    youtube: '<rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10.2 9.3v5.4l4.6-2.7z" fill="currentColor"/>',
+    twitch: '<path d="M4.5 3h15v10.5L15.5 17.5h-4l-3 3v-3h-4z"/><path d="M11 7.5v4M15 7.5v4"/>',
+    heart: '<path d="M12 20s-7-4.3-8.8-8.6C1.9 8.1 4 4.8 7.3 4.8c1.9 0 3.3 1 4.7 2.7 1.4-1.7 2.8-2.7 4.7-2.7 3.3 0 5.4 3.3 4.1 6.6C19 15.7 12 20 12 20z"/>',
+    hourglass: '<path d="M6 3h12M6 21h12M7.5 3c0 4.5 4.5 6 4.5 9s-4.5 4.5-4.5 9M16.5 3c0 4.5-4.5 6-4.5 9s4.5 4.5 4.5 9"/>',
+    chat: '<path d="M7 18H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7l-5 3.5z"/><path d="M8 9.5h8M8 13h5"/>',
+    gamepad: '<path d="M7 7h10a4 4 0 0 1 4 4v3.5a2.5 2.5 0 0 1-4.6 1.4L15 14H9l-1.4 1.9A2.5 2.5 0 0 1 3 14.5V11a4 4 0 0 1 4-4z"/><path d="M8 9.5v3.5M6.25 11.25h3.5M15.5 10.5h.01M17.5 12.5h.01"/>',
+    moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>',
+    star: '<path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/>',
+    eraser: '<path d="M20 20H9.5M15.5 4l5 5-9.5 9.5H7L3.5 15z"/><path d="m10 9.5 5 5"/>',
+    refresh: '<path d="M20 11a8 8 0 0 0-14.6-4.5M4 3.5v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20.5v-4h-4"/>',
+    reset: '<path d="M3.5 4v5h5"/><path d="M4.3 9A8 8 0 1 1 4 13.5"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    gem: '<path d="M6.5 4h11l3.5 5-9 11L3 9z"/><path d="M3 9h18M12 20 8.5 9l1.5-5M12 20l3.5-11L14 4"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
+    external: '<path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>',
+    folder: '<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17z"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    play: '<path d="M7.5 5v14L19 12z" fill="currentColor"/>',
+    pause: '<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="3.2"/>',
+    pin: '<path d="M9 3.5h6l-1 5.5 3.5 3.5V14h-11v-1.5L10 9z"/><path d="M12 14v6.5"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  };
+  const ic = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
+  for (const e of document.querySelectorAll("[data-ic]")) e.insertAdjacentHTML("afterbegin", ic(e.dataset.ic));
   fitStage(stage);
-  FX.Sky($("#studio-sky"), { stars: 70, fireflies: 12, petals: 12, butterflies: 2 });
-  $(".brand-logo").innerHTML = ICONS.blossom;
-  const sideBloom = FX.blossoms({ w: 260, h: 220, anchor: "tr", seed: 88, flowers: 6, leaves: 7, size: 0.7 });
-  sideBloom.style.right = "-30px"; sideBloom.style.top = "-30px";
-  $(".side").appendChild(sideBloom);
+  $("#stage").prepend(FX.milkyWay({ seed: 12, from: [0.15, 1.05], to: [1.05, -0.05], width: 0.14 }));
+  FX.Sky($("#studio-sky"), { stars: 120, bright: 3, meteors: 0.6, dust: 0, top: 1 });
+  $(".brand-logo").innerHTML = ICONS.sparkle;
+  const sideStars = FX.constellations({ w: 260, h: 220, anchor: "tr", seed: 88, sparkles: 4, stars: 8, size: 0.7 });
+  sideStars.style.right = "-30px"; sideStars.style.top = "-30px";
+  $(".side").appendChild(sideStars);
 
   const ORIGIN = location.origin.replace("localhost", "127.0.0.1");
   $("#host").textContent = location.host;
@@ -33,15 +66,15 @@
     clearTimeout(saveTimer);
     const run = async () => {
       const r = await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(cfg) });
-      toast(r.ok ? "บันทึกแล้ว ✓" : "บันทึกไม่สำเร็จ");
+      toast(r.ok ? "บันทึกแล้ว" : "บันทึกไม่สำเร็จ", r.ok ? "check" : "x");
     };
     if (now) run(); else saveTimer = setTimeout(run, 350);
   }
 
   let toastTimer;
-  function toast(msg) {
+  function toast(msg, icon) {
     const t = $("#toast");
-    t.textContent = msg;
+    t.innerHTML = (icon ? ic(icon) : "") + `<span>${esc(msg)}</span>`;
     t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
@@ -73,7 +106,7 @@
   const RANGE_OPTS = [["all", "ทั้งหมด"], ["today", "วันนี้"], ["week", "7 วันล่าสุด"], ["month", "เดือนนี้"], ["session", "ตั้งแต่เปิดโปรแกรม (ไลฟ์นี้)"], ["custom", "กำหนดวันที่เอง"]];
   const rangeBlock = (base, title) => `
     ${F.select(`${base}.preset`, `ช่วงเวลา ${title}`, RANGE_OPTS)}
-    <div class="two" data-show-if="${base}.preset=custom">${F.dt(`${base}.start`, "เริ่มต้น")}${F.dt(`${base}.end`, "สิ้นสุด (เว้นว่าง = ถึงตอนนี้)")}</div>`;
+    <div class="dt-pair" data-show-if="${base}.preset=custom">${F.dt(`${base}.start`, "เริ่มต้น")}${F.dt(`${base}.end`, "สิ้นสุด (เว้นว่าง = ถึงตอนนี้)")}</div>`;
 
   function bindForm(root) {
     for (const inp of $$("[data-path]", root)) {
@@ -152,16 +185,17 @@
 
   // ---------------------------------------------------------------- pages
   const PAGES = [
-    { id: "youtube", ico: "📺", t: "YouTube Live", s: "เลือกช่อง / ไลฟ์ที่ดึงแชท", url: "/widget/chat", sub: "เลือกไลฟ์ที่จะดึงแชท (innertube — ไม่ต้องใช้ API key)", size: "Chat only · แนะนำ 450 × 800" },
-    { id: "easydonate", ico: "💜", t: "EasyDonate", s: "API · Goal · Top · Latest", url: "/scene/chatting", sub: "เชื่อมต่อ API เพื่อดึงโดเนท หลอดเป้าหมาย Top & Latest", size: "1920 × 1080" },
-    { id: "starting", ico: "⏳", t: "Starting Soon", s: "นับถอยหลัง + ต้อนรับ", url: "/scene/starting", sub: "หน้าก่อนเริ่มไลฟ์ — นับถอยหลังพร้อมกลีบดอกไม้", size: "1920 × 1080" },
-    { id: "chatting", ico: "💬", t: "Just Chatting", s: "แชทซ้าย + กล้องทรงโค้ง", url: "/scene/chatting", sub: "แชทด้านซ้าย กล้องทรงซุ้มโค้ง และการ์ดโดเนทใต้กล้อง", size: "1920 × 1080" },
-    { id: "gameplay", ico: "🎮", t: "Gameplay", s: "กล้องเล็ก + แจ้งเตือน", url: "/scene/gameplay", sub: "พื้นหลังโปร่งใส วางทับเกม — กล้องทรงโค้งมุมขวาล่าง", size: "1920 × 1080" },
-    { id: "ending", ico: "🌙", t: "Stream Ended", s: "ขอบคุณ + เครดิตผู้สนับสนุน", url: "/scene/ending", sub: "ปิดไลฟ์อย่างอบอุ่น พร้อมรายชื่อผู้สนับสนุน", size: "1920 × 1080" },
-    { id: "profile", ico: "🌸", t: "ข้อมูลช่อง", s: "ชื่อ · โซเชียล · หัวข้อ", url: "/scene/chatting", sub: "ข้อมูลที่ใช้ร่วมกันทุกซีน", size: "1920 × 1080" },
+    { id: "youtube", ico: "youtube", t: "YouTube Live", s: "เลือกช่อง / ไลฟ์ที่ดึงแชท", url: "/widget/chat", sub: "เลือกไลฟ์ที่จะดึงแชท (innertube — ไม่ต้องใช้ API key)", size: "Chat only · แนะนำ 450 × 800" },
+    { id: "twitch", ico: "twitch", t: "Twitch", s: "แชท + ยอดคนดู (ไม่ใช้ API key)", url: "/widget/chat", sub: "ดึงแชทและยอดคนดูจาก Twitch โดยไม่ต้องใช้ API key — รวมกับแชท YouTube ในช่องเดียวกัน", size: "Chat only · แนะนำ 450 × 800" },
+    { id: "easydonate", ico: "heart", t: "EasyDonate", s: "API · Goal · Top · Latest", url: "/scene/chatting", sub: "เชื่อมต่อ API เพื่อดึงโดเนท หลอดเป้าหมาย Top & Latest", size: "1920 × 1080" },
+    { id: "starting", ico: "hourglass", t: "Starting Soon", s: "นับถอยหลัง + ต้อนรับ", url: "/scene/starting", sub: "หน้าก่อนเริ่มไลฟ์ — นับถอยหลังใต้ท้องฟ้าเต็มไปด้วยดาว", size: "1920 × 1080" },
+    { id: "chatting", ico: "chat", t: "Just Chatting", s: "แชทซ้าย + กล้องทรงโค้ง", url: "/scene/chatting", sub: "แชทด้านซ้าย กล้องทรงซุ้มโค้ง และการ์ดโดเนทใต้กล้อง", size: "1920 × 1080" },
+    { id: "gameplay", ico: "gamepad", t: "Gameplay", s: "กล้องเล็ก + แจ้งเตือน", url: "/scene/gameplay", sub: "พื้นหลังโปร่งใส วางทับเกม — กล้องทรงโค้งมุมขวาล่าง", size: "1920 × 1080" },
+    { id: "ending", ico: "moon", t: "Stream Ended", s: "ขอบคุณ + เครดิตผู้สนับสนุน", url: "/scene/ending", sub: "ปิดไลฟ์อย่างอบอุ่น พร้อมรายชื่อผู้สนับสนุน", size: "1920 × 1080" },
+    { id: "profile", ico: "user", t: "ข้อมูลช่อง", s: "ชื่อ · โซเชียล · หัวข้อ", url: "/scene/chatting", sub: "ข้อมูลที่ใช้ร่วมกันทุกซีน", size: "1920 × 1080" },
   ];
 
-  $("#nav").innerHTML = PAGES.map((p) => `<button class="nav-item" data-page="${p.id}"><span class="nav-ico">${p.ico}</span><span><div class="nav-t">${p.t}</div><div class="nav-s">${p.s}</div></span></button>`).join("");
+  $("#nav").innerHTML = PAGES.map((p) => `<button class="nav-item" data-page="${p.id}"><span class="nav-ico">${ic(p.ico)}</span><span><div class="nav-t">${p.t}</div><div class="nav-s">${p.s}</div></span></button>`).join("");
   $("#nav").addEventListener("click", (e) => { const b = e.target.closest("[data-page]"); if (b) go(b.dataset.page); });
   document.addEventListener("click", (e) => { const b = e.target.closest("[data-goto]"); if (b) go(b.dataset.goto); });
 
@@ -208,9 +242,9 @@
       </ul>
     </div>
     <div class="btn-row">
-      <button class="btn btn-rose" data-act="test-donate">💜 ทดสอบโดเนท</button>
-      <button class="btn" data-act="test-chat">💬 ทดสอบแชท</button>
-      <button class="btn" data-act="test-sc">⭐ ทดสอบ Super Chat</button>
+      <button class="btn btn-rose" data-act="test-donate">${ic("heart")}ทดสอบโดเนท</button>
+      <button class="btn" data-act="test-chat">${ic("chat")}ทดสอบแชท</button>
+      <button class="btn" data-act="test-sc">${ic("star")}ทดสอบ Super Chat</button>
     </div>`;
 
   document.addEventListener("click", async (e) => {
@@ -222,10 +256,21 @@
       await post("/api/test/donation", { name: n || undefined, amount: a, message: m || undefined });
       toast("ส่งโดเนททดสอบแล้ว");
     } else if (act === "test-chat") {
-      const msgs = ["สวัสดีครับ 👋", "ธีมสวยมากเลย 🌸", "วันนี้เล่นอะไรครับ", "มาแล้วววว"];
+      const msgs = ["สวัสดีครับ 👋", "ธีมดาวสวยมากเลย ✨", "วันนี้เล่นอะไรครับ", "มาแล้วววว"];
       await post("/api/test/chat", { name: "@viewer" + Math.floor(Math.random() * 99), message: msgs[Math.floor(Math.random() * msgs.length)] });
     } else if (act === "test-sc") {
       await post("/api/test/chat", { name: "@supporter", message: "Super Chat ทดสอบ ✨", kind: "superchat" });
+    } else if (act === "tw-test-chat") {
+      const msgs = ["สวัสดีจาก Twitch 👋", "PogChamp ธีมดาวสวยมาก", "มาแล้วครับ", "GG"];
+      await post("/api/test/chat", { source: "twitch", name: "twitch_viewer" + Math.floor(Math.random() * 99), message: msgs[Math.floor(Math.random() * msgs.length)] });
+    } else if (act === "tw-test-bits") {
+      await post("/api/test/chat", { source: "twitch", kind: "superchat", name: "cheer_fan", message: "Cheer100 สู้ ๆ นะ ✨" });
+    } else if (act === "tw-reconnect") {
+      await post("/api/tw/reconnect"); toast("กำลังเชื่อมต่อ Twitch ใหม่…");
+    } else if (act === "tw-connect") {
+      cfg.twitch = { ...(cfg.twitch || {}), channel: $("#tw-q").value.trim() };
+      save(true);
+      toast(cfg.twitch.channel ? "กำลังเชื่อมต่อ Twitch…" : "ปิดการดึงแชท Twitch แล้ว");
     } else if (act === "clear-chat") {
       await post("/api/chat/clear"); toast("ล้างแชทแล้ว");
     } else if (act === "yt-reconnect") {
@@ -241,7 +286,7 @@
       const out = $("#ed-test-out");
       out.innerHTML = `<span class="spinner"></span> กำลังทดสอบ…`;
       const r = await post("/api/ed/test", { api_key: key });
-      const line = (label, x) => `<div>${x.ok ? "<span class='ok'>✓</span>" : "<span class='bad'>✗</span>"} ${label}${x.ok ? "" : ` — <span class="bad">${esc(x.message)}</span>`}</div>`;
+      const line = (label, x) => `<div>${x.ok ? `<span class='ok'>${ic("check", "ic-sm")}</span>` : `<span class='bad'>${ic("x", "ic-sm")}</span>`} ${label}${x.ok ? "" : ` — <span class="bad">${esc(x.message)}</span>`}</div>`;
       out.innerHTML = (r.account ? `<div>บัญชี: <b>${esc(r.account)}</b></div>` : "") + line("ข้อมูลบัญชี (read:profile)", r.profile) + line("รายการโดเนท (read:donations)", r.donations) + line("วิดเจ็ต goal (read:widgets)", r.widgets);
     } else if (act === "toggle-key") {
       const i = $("[data-path='easydonate.api_key']"); i.type = i.type === "password" ? "text" : "password";
@@ -271,7 +316,7 @@
       settings: () => `
         <div class="yt-head"><span class="yt-chip">YOUTUBE</span><span class="page-sub">เลือกไลฟ์ที่จะดึงแชท</span></div>
         <div class="field"><label>ชื่อช่อง YouTube</label>
-          <div class="row"><input class="inp" id="yt-q" placeholder="@channel" value="${esc(cfg.youtube.channel)}"><button class="btn btn-primary" id="yt-search">🔍 ค้นหาไลฟ์</button></div>
+          <div class="row"><input class="inp" id="yt-q" placeholder="@channel" value="${esc(cfg.youtube.channel)}"><button class="btn btn-primary" id="yt-search">${ic("search")}ค้นหาไลฟ์</button></div>
           <div class="hint">เช่น @flixzer · https://youtube.com/@flixzer · UCxxxx · หรือวางลิงก์ไลฟ์โดยตรง</div>
         </div>
         <div class="stream-list" id="yt-list"></div>`,
@@ -286,11 +331,11 @@
           ${F.toggle("ui.chat.donateCards", "การ์ดโดเนทในช่องแชท")}
         </div>
         <div class="btn-row">
-          <button class="btn" data-act="test-chat">💬 ทดสอบแชท</button>
-          <button class="btn" data-act="test-sc">⭐ ทดสอบ Super Chat</button>
-          <button class="btn btn-rose" data-act="test-donate">💜 ทดสอบโดเนท</button>
-          <button class="btn" data-act="clear-chat">🧹 ล้างแชท</button>
-          <button class="btn" data-act="yt-reconnect">🔄 เชื่อมต่อใหม่</button>
+          <button class="btn" data-act="test-chat">${ic("chat")}ทดสอบแชท</button>
+          <button class="btn" data-act="test-sc">${ic("star")}ทดสอบ Super Chat</button>
+          <button class="btn btn-rose" data-act="test-donate">${ic("heart")}ทดสอบโดเนท</button>
+          <button class="btn" data-act="clear-chat">${ic("eraser")}ล้างแชท</button>
+          <button class="btn" data-act="yt-reconnect">${ic("refresh")}เชื่อมต่อใหม่</button>
         </div>`,
       after() {
         $("#yt-search").addEventListener("click", ytSearch);
@@ -300,14 +345,42 @@
       },
     },
 
+    twitch: {
+      settings: () => `
+        <div class="yt-head"><span class="yt-chip tw-chip">TWITCH</span><span class="page-sub">แชท + ยอดคนดู ไม่ต้องใช้ API key</span></div>
+        <div class="field"><label>ชื่อช่อง Twitch</label>
+          <div class="row"><input class="inp" id="tw-q" placeholder="kayleepk" value="${esc(cfg.twitch?.channel || "")}"><button class="btn btn-primary" data-act="tw-connect">${ic("link")}เชื่อมต่อ</button></div>
+          <div class="hint">เช่น kayleepk · @kayleepk · https://twitch.tv/kayleepk — เว้นว่างแล้วกดเชื่อมต่อ = ปิด Twitch</div>
+        </div>
+        <div class="tw-status" id="tw-status"></div>
+        <div class="help"><h3>ทำงานอย่างไร</h3><ul>
+          <li>แชท: เชื่อมต่อ Twitch IRC แบบผู้ชมไม่ล็อกอิน (อ่านอย่างเดียว) — ไม่ต้องใช้บัญชีหรือ API key</li>
+          <li>ยอดคนดู ชื่อไลฟ์ และหมวดเกม: อัปเดตทุก 20 วินาทีจากข้อมูลสาธารณะของหน้าเว็บ Twitch</li>
+          <li>แชท Twitch ขึ้นในช่องแชทเดียวกับ YouTube · Bits ขึ้นเป็นการ์ดสีม่วง · ยอดคนดูรวมสองแพลตฟอร์ม</li>
+        </ul></div>`,
+      extras: () => `
+        ${F.sec("ทดสอบ")}
+        <div class="btn-row">
+          <button class="btn" data-act="tw-test-chat">${ic("chat")}ทดสอบแชท Twitch</button>
+          <button class="btn" data-act="tw-test-bits">${ic("gem")}ทดสอบ Bits</button>
+          <button class="btn" data-act="clear-chat">${ic("eraser")}ล้างแชท</button>
+          <button class="btn" data-act="tw-reconnect">${ic("refresh")}เชื่อมต่อใหม่</button>
+        </div>
+        <div class="hint">ตั้งค่าหน้าตาแชท (จำนวนข้อความ ขนาดตัวอักษร ป้าย) ได้ที่หน้า YouTube Live — ใช้ร่วมกันทั้งสองแพลตฟอร์ม</div>`,
+      after() {
+        $("#tw-q").addEventListener("keydown", (e) => { if (e.key === "Enter") $("[data-act='tw-connect']").click(); });
+        renderTwitch();
+      },
+    },
+
     easydonate: {
       settings: () => `
         ${F.sec("การเชื่อมต่อ", "API")}
         <div class="field"><label>API key (ezdn_v1_…)</label>
-          <div class="row"><input class="inp" type="password" data-path="easydonate.api_key" data-lazy placeholder="ezdn_v1_xxxxxxxx"><button class="btn" data-act="toggle-key" title="แสดง/ซ่อน">👁</button></div>
+          <div class="row"><input class="inp" type="password" data-path="easydonate.api_key" data-lazy placeholder="ezdn_v1_xxxxxxxx"><button class="btn" data-act="toggle-key" title="แสดง/ซ่อน">${ic("eye")}</button></div>
           <div class="hint">สร้างได้ที่ easydonate.app › หน้าจัดการ › โซนผู้พัฒนา › API Keys — เลือก scope <b>read:donations</b>, <b>read:widgets</b> (และ read:profile ถ้าต้องการชื่อบัญชี)</div>
         </div>
-        <div class="row"><button class="btn btn-primary" data-act="ed-test">ทดสอบการเชื่อมต่อ</button><button class="btn" data-act="ed-refresh">↻ ดึงข้อมูลใหม่</button></div>
+        <div class="row"><button class="btn btn-primary" data-act="ed-test">ทดสอบการเชื่อมต่อ</button><button class="btn" data-act="ed-refresh">${ic("refresh")}ดึงข้อมูลใหม่</button></div>
         <div class="test-result" id="ed-test-out"></div>
         ${F.range("easydonate.poll_secs", "ตรวจโดเนทใหม่ทุก", 3, 30, 1, " วิ")}
 
@@ -351,7 +424,7 @@
           <input class="inp" id="td-name" placeholder="ชื่อผู้โดเนท">
           <input class="inp" id="td-amt" type="number" placeholder="฿" value="100">
           <input class="inp" id="td-msg" placeholder="ข้อความ">
-          <button class="btn btn-rose" data-act="test-donate">💜 ทดสอบ</button>
+          <button class="btn btn-rose" data-act="test-donate">${ic("heart")}ทดสอบ</button>
         </div>`,
       after() { renderEdData(); renderEdStatus(); },
     },
@@ -368,10 +441,10 @@
         <div class="cd-ctl" data-show-if="ui.scenes.starting.countdownMode=manual">
           <div class="cd-ctl-time" id="cd-ctl-time">--:--</div>
           <div class="btn-row">
-            <button class="btn btn-primary" data-act="cd-toggle" id="cd-toggle">▶ เริ่ม</button>
-            <button class="btn" data-act="cd-reset">↺ รีเซ็ต</button>
-            <button class="btn btn-sm" data-act="cd-add" data-ms="-60000">−1 นาที</button>
-            <button class="btn btn-sm" data-act="cd-add" data-ms="60000">+1 นาที</button>
+            <button class="btn btn-primary" data-act="cd-toggle" id="cd-toggle">${ic("play")}เริ่ม</button>
+            <button class="btn" data-act="cd-reset">${ic("reset")}รีเซ็ต</button>
+            <button class="btn btn-sm" data-act="cd-add" data-ms="-60000">${ic("minus")}1 นาที</button>
+            <button class="btn btn-sm" data-act="cd-add" data-ms="60000">${ic("plus")}1 นาที</button>
           </div>
         </div>
         ${F.time("ui.scenes.starting.countdownTime", "เริ่มไลฟ์เวลา", "ui.scenes.starting.countdownMode=time")}
@@ -379,7 +452,7 @@
         ${F.sec("องค์ประกอบ")}
         ${F.toggle("ui.scenes.starting.showChat", "แสดงช่องแชท")}
         ${F.toggle("ui.scenes.starting.showTopic", "แสดงหัวข้อไลฟ์")}
-        ${F.toggle("ui.scenes.starting.showBar", "แสดงแถบลอย (Top / Latest / Viewers / โซเชียล)")}
+        ${F.toggle("ui.scenes.starting.showBar", "แสดงแถบลอย", "Top · Latest · ยอดคนดู · โซเชียล")}
         <div class="btn-row"><button class="btn btn-sm" data-act="reset-scene" data-scene="starting">คืนค่าเริ่มต้น</button></div>`,
       extras: () => obsHelp(`<li>ติ๊ก <b>Refresh browser when scene becomes active</b> เพื่อให้นับถอยหลังใหม่ทุกครั้งที่สลับมาซีนนี้</li>`),
     },
@@ -427,7 +500,7 @@
         ${F.sec("องค์ประกอบ")}
         ${F.toggle("ui.scenes.ending.showCredits", "แสดงเครดิตผู้สนับสนุน (Top Donate)", "ช่วงเวลาตามที่ตั้งไว้ในหน้า EasyDonate › Top Donate")}
         ${F.toggle("ui.scenes.ending.showSocials", "แสดงช่องทางโซเชียล")}
-        ${F.toggle("ui.scenes.ending.showBar", "แสดงแถบลอย (Top / Latest / Viewers / โซเชียล)")}
+        ${F.toggle("ui.scenes.ending.showBar", "แสดงแถบลอย", "Top · Latest · ยอดคนดู · โซเชียล")}
         <div class="btn-row"><button class="btn btn-sm" data-act="reset-scene" data-scene="ending">คืนค่าเริ่มต้น</button></div>`,
       extras: () => obsHelp(),
     },
@@ -445,9 +518,9 @@
             <span class="drag-handle" title="ลากเพื่อสลับลำดับ">⋮⋮</span>
             <select class="inp" data-path="ui.profile.socials.${i}.kind">${Object.keys(OS.SOCIAL_LABEL).map((k) => `<option value="${k}">${OS.SOCIAL_LABEL[k]}</option>`).join("")}</select>
             <input class="inp" data-path="ui.profile.socials.${i}.handle" placeholder="@handle">
-            <button class="btn" data-act="del-social" data-i="${i}">✕</button>
+            <button class="btn" data-act="del-social" data-i="${i}" title="ลบ">${ic("x")}</button>
           </div>`).join("")}
-        <button class="btn btn-sm" data-act="add-social">＋ เพิ่มช่องทาง</button>
+        <button class="btn btn-sm" data-act="add-social">${ic("plus")}เพิ่มช่องทาง</button>
         ${F.sec("ระบบ")}
         ${F.toggle("auto_update", "อัปเดตอัตโนมัติเมื่อเปิดโปรแกรม", "ตรวจสอบ build ใหม่จาก GitHub ทุกครั้งที่เปิดโปรแกรม")}
         ${F.num("port", "พอร์ตเซิร์ฟเวอร์", { min: 1024, max: 65535, hint: "มีผลหลังเปิดโปรแกรมใหม่ — URL ใน OBS ต้องเปลี่ยนตาม" })}`,
@@ -487,7 +560,7 @@
     const autoSel = y.mode !== "manual";
     let html = `
       <div class="stream ${autoSel ? "sel" : ""}" data-auto>
-        <div class="st-thumb">🔄</div>
+        <div class="st-thumb">${ic("refresh", "ic-lg")}</div>
         <div class="st-body"><div class="st-title">อัตโนมัติ</div><div class="st-meta">ใช้ไลฟ์ที่กำลังออนอยู่ของ ${esc(q || "ช่องนี้")} — ถ้ายังไม่ไลฟ์จะรอแล้วต่อให้เองเมื่อเริ่ม</div></div>
         <span class="st-radio"></span>
       </div>`;
@@ -522,21 +595,47 @@
   }
 
   // ---------------------------------------------------------------- live status (sidebar)
-  const LIVE_TEXT = { idle: "ยังไม่ได้ตั้งค่า", searching: "กำลังค้นหา…", waiting: "รอเริ่มไลฟ์", connecting: "กำลังเชื่อมต่อ…", live: "เชื่อมต่อแล้ว ✓", ended: "ไลฟ์จบแล้ว", error: "ผิดพลาด" };
-  const ED_TEXT = { off: "ยังไม่ได้ตั้งค่า", connecting: "กำลังเชื่อมต่อ…", ok: "เชื่อมต่อแล้ว ✓", warn: "เชื่อมต่อแล้ว (บางส่วน)", error: "ผิดพลาด" };
+  const LIVE_TEXT = { idle: "ยังไม่ได้ตั้งค่า", searching: "กำลังค้นหา…", waiting: "รอเริ่มไลฟ์", connecting: "กำลังเชื่อมต่อ…", live: "เชื่อมต่อแล้ว", ended: "ไลฟ์จบแล้ว", error: "ผิดพลาด" };
+  const ED_TEXT = { off: "ยังไม่ได้ตั้งค่า", connecting: "กำลังเชื่อมต่อ…", ok: "เชื่อมต่อแล้ว", warn: "เชื่อมต่อแล้ว (บางส่วน)", error: "ผิดพลาด" };
   const cls = (st) => (st === "live" || st === "ok" ? "ok" : st === "error" ? "bad" : "mid");
 
   function renderLive() {
-    const l = Bus.state.live || {};
+    const l = Bus.state.live || {}, t = Bus.state.twitch || {}, v = viewerTotals();
+    const live = l.state === "live" || t.state === "live";
     const pill = $("#lc-pill");
-    pill.className = "lc-pill" + (l.state === "live" ? " live" : l.state === "error" ? " warn" : "");
-    pill.textContent = l.state === "live" ? "LIVE" : (l.state || "offline").toUpperCase();
-    $("#lc-viewers").textContent = l.viewers != null ? Number(l.viewers).toLocaleString("en-US") : "";
-    $("#lc-title").textContent = l.title || l.message || "ยังไม่ได้เชื่อมต่อไลฟ์";
+    pill.className = "lc-pill" + (live ? " live" : l.state === "error" ? " warn" : "");
+    pill.textContent = live ? "LIVE" : (l.state || "offline").toUpperCase();
+    $("#lc-viewers").textContent = v.total != null ? Number(v.total).toLocaleString("en-US") : "";
+    $("#lc-viewers").title = v.parts.length > 1 ? `YouTube ${v.yt} · Twitch ${v.tw}` : "";
+    $("#lc-title").textContent = l.title || (t.state === "live" && t.title) || l.message || "ยังไม่ได้เชื่อมต่อไลฟ์";
     const yt = $("#lc-yt");
     yt.textContent = LIVE_TEXT[l.state] || "—";
     yt.className = cls(l.state);
     yt.title = l.message || "";
+  }
+  const TW_TEXT = { idle: "ยังไม่ได้ตั้งค่า", connecting: "กำลังเชื่อมต่อ…", live: "ไลฟ์อยู่", offline: "เชื่อมต่อแล้ว (ยังไม่ไลฟ์)", error: "ผิดพลาด" };
+  function renderTwitch() {
+    const t = Bus.state.twitch || {};
+    const chatErr = t.chat === "error";
+    const lc = $("#lc-tw");
+    lc.textContent = chatErr ? "แชทหลุด — กำลังต่อใหม่" : TW_TEXT[t.state] || "—";
+    lc.className = chatErr ? "bad" : t.state === "live" || t.state === "offline" ? "ok" : t.state === "error" ? "bad" : "mid";
+    lc.title = t.message || "";
+    renderLive();
+    const box = $("#tw-status");
+    if (!box) return;
+    if (!t.channel) { box.innerHTML = `<div class="empty-note">${esc(t.message || "ใส่ชื่อช่องแล้วกดเชื่อมต่อ")}</div>`; return; }
+    const pill = t.state === "live" ? `<span class="badge-live">LIVE</span>` : t.state === "offline" ? `<span class="badge-past">OFFLINE</span>` : `<span class="badge-up">${esc((t.state || "").toUpperCase())}</span>`;
+    box.innerHTML = `
+      <div class="stream sel tw-card">
+        ${t.avatar ? `<img class="st-thumb tw-av" src="${esc(t.avatar)}" referrerpolicy="no-referrer">` : `<div class="st-thumb">${ic("twitch", "ic-lg")}</div>`}
+        <div class="st-body">
+          <div class="st-title">${esc(t.display_name || t.channel)} ${pill}</div>
+          <div class="st-meta"><span>${t.state === "live" ? `${ic("eye", "ic-sm")} ${Number(t.viewers || 0).toLocaleString("en-US")} คน${t.game ? " · " + esc(t.game) : ""}` : "แชทใช้งานได้แม้ยังไม่ไลฟ์"}</span></div>
+          ${t.title ? `<div class="st-meta"><span>${esc(t.title)}</span></div>` : ""}
+          <div class="st-meta"><span>แชท: ${t.chat === "connected" ? "เชื่อมต่อแล้ว" : chatErr ? "หลุด — กำลังต่อใหม่" : "กำลังเชื่อมต่อ…"}${t.message ? " · " + esc(t.message) : ""}</span></div>
+        </div>
+      </div>`;
   }
   function renderEdStatus() {
     const s = Bus.state.ed_status || {};
@@ -549,7 +648,7 @@
   }
   function renderSource() {
     const y = cfg.youtube;
-    $("#src-mode").textContent = y.mode === "manual" ? "📌 ไลฟ์ที่เลือก" : "🔄 อัตโนมัติ";
+    $("#src-mode").innerHTML = y.mode === "manual" ? `${ic("pin")}ไลฟ์ที่เลือก` : `${ic("refresh")}อัตโนมัติ`;
     $("#src-title").textContent = y.mode === "manual" ? y.video_title || y.video_id : y.channel || "ยังไม่ได้ใส่ช่อง";
   }
   function renderEdData() {
@@ -562,7 +661,7 @@
     goal.innerHTML = g ? `<div class="dl"><span>${esc(g.title || "Goal")}</span></div><div class="dl"><span>${money2(g.current)} / ${money2(g.target)}</span><b>${Math.floor((g.current / g.target) * 100) || 0}%</b></div>` : `<div class="dl"><span>Goal: —</span></div>`;
   }
 
-  Bus.on("live", renderLive).on("ed_status", renderEdStatus).on("donate_state", renderEdData);
+  Bus.on("live", renderLive).on("twitch", renderTwitch).on("ed_status", renderEdStatus).on("donate_state", renderEdData);
   // ---------------------------------------------------------------- updater status
   const UPD = {
     checking: (u) => `กำลังตรวจสอบอัปเดต…`,
@@ -592,7 +691,8 @@
     const c = Bus.state.countdown || {}, left = cdLeft();
     t.textContent = OS.clock(left);
     t.classList.toggle("running", !!c.running);
-    b.textContent = c.running ? "⏸ หยุดชั่วคราว" : c.remaining_ms == null || c.remaining_ms <= 0 ? "▶ เริ่ม" : "▶ นับต่อ";
+    const label = c.running ? "หยุดชั่วคราว" : c.remaining_ms == null || c.remaining_ms <= 0 ? "เริ่ม" : "นับต่อ";
+    if (b.dataset.label !== label) { b.dataset.label = label; b.innerHTML = ic(c.running ? "pause" : "play") + label; }
   }
   Bus.on("countdown", renderCountdown);
   setInterval(renderCountdown, 250);

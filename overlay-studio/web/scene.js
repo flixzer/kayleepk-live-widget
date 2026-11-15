@@ -19,24 +19,27 @@
     return `path(evenodd, "M0 0H${W}V${H}H0Z ${FX.archPath(c.x, c.y, c.w, c.h, c.R, c.r)}")`;
   }
 
+  // Night sky: gradient, Milky Way, crescent moon, animated stars / shooting stars, then
+  // the horizon in front so hills hide anything below the skyline.
   function backdrop(hole, fxOpts = {}) {
     const bg = el("div", "bg");
     bg.appendChild(el("div", "sky-grad"));
+    bg.appendChild(FX.milkyWay());
     bg.appendChild(el("div", "moon"));
-    bg.appendChild(FX.bokeh());
-    bg.appendChild(FX.landscape());
     const cv = el("canvas", "sky");
     bg.appendChild(cv);
+    bg.appendChild(FX.landscape());
     if (hole) bg.style.clipPath = holeClip(hole);
     stage.appendChild(bg);
     FX.Sky(cv, fxOpts);
     return bg;
   }
 
-  function petalsOver(n = 9) {
-    const cv = el("canvas", "petal-layer");
+  // Foreground layer of drifting star dust over the panels.
+  function dustOver(n = 9) {
+    const cv = el("canvas", "dust-layer");
     stage.appendChild(cv);
-    FX.Sky(cv, { stars: 0, fireflies: 0, butterflies: 0, petals: n });
+    FX.Sky(cv, { stars: 0, bright: 0, meteors: 0, dust: n });
   }
 
   function place(node, x, y, w, h, parent = stage) {
@@ -46,7 +49,7 @@
   }
 
   function cluster(x, y, opts, parent = stage) {
-    const b = FX.blossoms(opts);
+    const b = FX.constellations(opts);
     b.style.left = x + "px";
     b.style.top = y + "px";
     parent.appendChild(b);
@@ -74,8 +77,8 @@
     return Wd.ChatPanel(host);
   }
 
-  // Divider ornament: line · blossom · line
-  const ornament = () => `<div class="hero-orn"><i></i>${ICONS.blossom}<i></i></div>`;
+  // Divider ornament: line · sparkle · line
+  const ornament = () => `<div class="hero-orn"><i></i>${ICONS.sparkle}<i></i></div>`;
 
   function dock(x, y, w, parts) {
     if (sc().showBar === false) return;
@@ -107,10 +110,10 @@
   const scenes = {
     starting() {
       backdrop(null);
-      cluster(-40, -40, { w: 620, h: 440, anchor: "tl", seed: 3, flowers: 16, leaves: 18 });
-      cluster(W - 520, H - 430, { w: 560, h: 450, anchor: "br", seed: 9, flowers: 15, leaves: 16 });
-      cluster(-30, H - 300, { w: 320, h: 300, anchor: "bl", seed: 21, flowers: 7, leaves: 8, size: 0.8 });
-      cluster(W - 250, -30, { w: 270, h: 150, anchor: "tr", seed: 5, flowers: 5, leaves: 6, size: 0.75 });
+      cluster(-40, -40, { w: 620, h: 440, anchor: "tl", seed: 3, sparkles: 8, stars: 18 });
+      cluster(W - 520, H - 430, { w: 560, h: 450, anchor: "br", seed: 9, sparkles: 8, stars: 16 });
+      cluster(-30, H - 300, { w: 320, h: 300, anchor: "bl", seed: 21, sparkles: 4, stars: 8, size: 0.8 });
+      cluster(W - 250, -30, { w: 270, h: 150, anchor: "tr", seed: 5, sparkles: 3, stars: 6, size: 0.75 });
       const withChat = sc().showChat !== false;
       // Hero fills the area left of the chat (or the whole width) and centres itself vertically.
       const heroX = withChat ? 100 : 0, heroW = withChat ? 1260 : W;
@@ -120,10 +123,10 @@
         <div class="hero-tag"></div>
         ${ornament()}
         <div class="countdown"><span class="cd-label">เริ่มใน</span><span class="cd-time">--:--</span></div>
-        <div class="hero-topic"><span class="ht-chip">${ICONS.blossom}<b>TOPIC</b></span><span class="topic-text"></span></div>`), heroX, 40, heroW, 920);
+        <div class="hero-topic"><span class="ht-chip">${ICONS.sparkle}<b>TOPIC</b></span><span class="topic-text"></span></div>`), heroX, 40, heroW, 920);
       let chat = null;
       if (withChat) chat = chatBox({ x: 1440, y: 96, w: 420, h: 860 });
-      petalsOver(10);
+      dustOver(10);
       dock(withChat ? heroX + 40 : 340, 984, withChat ? heroW - 80 : 1240, ["top", "latest", "viewers", "socials"]);
       Wd.AlertQueue(place(el("div"), 0, 0, W, 400), { enabled: () => !withChat || ui().alerts.toastInChatScenes });
 
@@ -166,22 +169,22 @@
       return chat;
     },
 
-    // Chat scroll on the left, the camera as an arched moon-gate window on the right,
+    // Chat scroll on the left, the camera as an arched window on the right,
     // floating info cards underneath. No header strip, no full-width bar.
     chatting() {
       const s0 = sc();
       const withChat = s0.showChat !== false;
       const cam = { x: withChat ? 560 : 308, y: 92, w: 1304, h: 734, R: 150, r: 14 };
-      backdrop(cam, { petals: 14, fireflies: 18 });
+      backdrop(cam, { bright: 6 });
       let chat = null;
       if (withChat) chat = chatBox({ x: 56, y: 56, w: 440, h: 968 }, { footer: true });
       camHole(cam);
-      cluster(cam.x - 70, cam.y + cam.h - 230, { w: 300, h: 270, anchor: "bl", seed: 31, flowers: 9, leaves: 10, size: 0.85 });
-      cluster(cam.x + cam.w - 300, -36, { w: 360, h: 260, anchor: "tr", seed: 17, flowers: 9, leaves: 10, size: 0.85 });
+      cluster(cam.x - 70, cam.y + cam.h - 230, { w: 300, h: 270, anchor: "bl", seed: 31, sparkles: 5, stars: 10, size: 0.85 });
+      cluster(cam.x + cam.w - 300, -36, { w: 360, h: 260, anchor: "tr", seed: 17, sparkles: 5, stars: 10, size: 0.85 });
 
       Wd.Nameplate(place(el("div", "np-hang"), cam.x + 44, 30), { label: () => sc().label || "JUST CHATTING" });
       if (s0.showTimer !== false) Wd.TimerBox(place(el("div"), cam.x + cam.w - 176, 26, 180, 180));
-      const ribbon = place(el("div", "ribbon", `<span class="rb-chip">${ICONS.blossom}<b>TOPIC</b></span><span class="rb-text"></span>`), cam.x + cam.w / 2, cam.y + cam.h - 34);
+      const ribbon = place(el("div", "ribbon", `<span class="rb-chip">${ICONS.sparkle}<b>TOPIC</b></span><span class="rb-text"></span>`), cam.x + cam.w / 2, cam.y + cam.h - 34);
       Bus.on("config", () => {
         ribbon.querySelector(".rb-text").textContent = ui().profile.topic || "";
         ribbon.style.display = ui().profile.topic && sc().showTopic !== false ? "" : "none";
@@ -195,7 +198,7 @@
         Wd.Ticker(place(el("div", "glass info-card"), cam.x + cam.w - 642, rowY, 312, rowH), { kind: "top", label: "TOP DONATE", variant: "spot" });
         Wd.Ticker(place(el("div", "glass info-card"), cam.x + cam.w - 312, rowY, 312, rowH), { kind: "latest", label: "LATEST", icon: ICONS.heart, variant: "spot" });
       }
-      petalsOver(7);
+      dustOver(7);
       Wd.AlertQueue(place(el("div"), cam.x, cam.y + 150, cam.w, 400), { enabled: () => !withChat || ui().alerts.toastInChatScenes });
       watchLayout(["showChat", "showGoal", "showTimer", "showBar"]);
       return chat;
@@ -218,7 +221,7 @@
           w: 472, h: 266, pad: 40,
           make: (b) => {
             camHole({ x: 0, y: 0, w: 472, h: 266, R: 86, r: 12 }, "CAMERA", b);
-            cluster(-70, -50, { w: 230, h: 180, anchor: "tl", seed: 61, flowers: 6, leaves: 6, size: 0.7 }, b);
+            cluster(-70, -50, { w: 230, h: 180, anchor: "tl", seed: 61, sparkles: 3, stars: 6, size: 0.7 }, b);
           },
         },
       };
@@ -271,10 +274,10 @@
     },
 
     ending() {
-      backdrop(null, { petals: 34 });
-      cluster(-40, -40, { w: 560, h: 420, anchor: "tl", seed: 71, flowers: 15, leaves: 16 });
-      cluster(-40, H - 420, { w: 520, h: 420, anchor: "bl", seed: 72, flowers: 13, leaves: 14 });
-      cluster(W - 360, H - 330, { w: 380, h: 330, anchor: "br", seed: 73, flowers: 8, leaves: 9, size: 0.8 });
+      backdrop(null, { meteors: 1.6, bright: 10 });
+      cluster(-40, -40, { w: 560, h: 420, anchor: "tl", seed: 71, sparkles: 8, stars: 16 });
+      cluster(-40, H - 420, { w: 520, h: 420, anchor: "bl", seed: 72, sparkles: 7, stars: 14 });
+      cluster(W - 360, H - 330, { w: 380, h: 330, anchor: "br", seed: 73, sparkles: 4, stars: 9, size: 0.8 });
       const s0 = sc();
       const withCredits = s0.showCredits !== false;
       const heroX = withCredits ? 60 : 0, heroW = withCredits ? 1240 : W;
@@ -311,7 +314,7 @@
         });
         Bus.on("config", () => { box.querySelector(".cr-title").textContent = sc().creditsTitle || "ขอบคุณผู้สนับสนุน"; });
       }
-      petalsOver(6);
+      dustOver(6);
       dock(withCredits ? heroX + 40 : 340, 984, withCredits ? heroW - 80 : 1240, ["top", "latest", "viewers", "socials"]);
       Wd.AlertQueue(place(el("div"), 0, 0, withCredits ? 1300 : W, 400));
       Bus.on("config", () => {

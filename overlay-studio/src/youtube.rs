@@ -490,17 +490,7 @@ fn handle_actions(state: &Shared, actions: &[Value], history: bool) {
             }
         } else if let Some(x) = a.get("removeChatItemByAuthorAction") {
             if let Some(cid) = x["externalChannelId"].as_str() {
-                let ids: Vec<String> = state
-                    .chat
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .filter(|m| m["channel_id"].as_str() == Some(cid))
-                    .filter_map(|m| m["id"].as_str().map(String::from))
-                    .collect();
-                for id in ids {
-                    state.remove_chat(&id);
-                }
+                state.remove_chat_by_author("youtube", cid);
             }
         }
     }
@@ -673,7 +663,7 @@ async fn cycle(state: &Shared) {
     };
 
     let vid = video["video_id"].as_str().unwrap_or("").to_string();
-    state.clear_chat();
+    state.clear_chat_source("youtube");
     state.set_live(json!({
         "state": "connecting",
         "mode": cfg.mode,

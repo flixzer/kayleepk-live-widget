@@ -8,30 +8,35 @@ body.fluid #stage { display: none; }
 .sky-grad {
   position: absolute; inset: 0;
   background:
-    radial-gradient(1200px 700px at 50% -10%, rgba(120, 118, 240, .38), transparent 70%),
-    radial-gradient(900px 500px at 85% 20%, rgba(90, 120, 255, .18), transparent 70%),
-    linear-gradient(180deg, #080b33 0%, #12175a 45%, #1d2378 75%, #121650 100%);
+    radial-gradient(1100px 600px at 18% 8%, rgba(70, 90, 220, .22), transparent 70%),
+    radial-gradient(900px 520px at 88% 30%, rgba(130, 90, 230, .16), transparent 70%),
+    radial-gradient(1400px 420px at 50% 88%, rgba(150, 120, 240, .2), transparent 70%),
+    linear-gradient(180deg, #02031a 0%, #070b33 35%, #101654 68%, #1a1d66 85%, #0d1040 100%);
 }
+canvas.milky-way { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; opacity: .9; }
+/* crescent moon: a lit disc masked by an offset circle, glow via drop-shadow */
 .moon {
-  position: absolute; right: 260px; top: 90px; width: 150px; height: 150px; border-radius: 50%;
-  background: radial-gradient(circle at 40% 40%, #ffffff, #e5e3ff 45%, #b9b5ff 70%, transparent 72%);
-  box-shadow: 0 0 60px 20px rgba(200, 198, 255, .35), 0 0 220px 80px rgba(150, 145, 255, .18);
-  opacity: .9; animation: breathe 6s ease-in-out infinite;
+  position: absolute; right: 260px; top: 90px; width: 110px; height: 110px;
+  filter: drop-shadow(0 0 10px rgba(255, 250, 230, .8)) drop-shadow(0 0 40px rgba(190, 200, 255, .55));
+  animation: breathe 6s ease-in-out infinite;
 }
-body.scene-starting .moon { right: 700px; top: 50px; width: 120px; height: 120px; }
-body.scene-chatting .moon { right: 520px; top: 26px; width: 96px; height: 96px; }
-body.scene-ending .moon { right: 760px; top: 60px; width: 120px; height: 120px; }
+.moon::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 30% 40%, #ffffff, #fff6e2 50%, #e6dcff 80%);
+  -webkit-mask: radial-gradient(circle at 70% 32%, transparent 0 45%, #000 46%);
+          mask: radial-gradient(circle at 70% 32%, transparent 0 45%, #000 46%);
+}
+body.scene-starting .moon { right: 700px; top: 54px; width: 104px; height: 104px; }
+body.scene-chatting .moon { right: 520px; top: 22px; width: 84px; height: 84px; }
+body.scene-ending .moon { right: 760px; top: 60px; width: 104px; height: 104px; }
 .landscape svg { position: absolute; left: 0; top: 0; }
-.landscape .clouds { filter: blur(14px); }
-.landscape .clouds.c1 { animation: drift 90s ease-in-out infinite alternate; }
-.landscape .clouds.c2 { animation: drift 130s ease-in-out infinite alternate-reverse; }
-@keyframes drift { from { transform: translateX(-80px); } to { transform: translateX(80px); } }
-.bokeh i { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgba(220,218,255,.9), rgba(160,155,255,.25) 60%, transparent 70%); filter: blur(2px); animation: bokeh-float 20s ease-in-out infinite alternate; }
-@keyframes bokeh-float { from { transform: translate(0, 0); } to { transform: translate(40px, -60px); } }
-canvas.sky, canvas.petal-layer { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
-.blossoms { z-index: 4; will-change: transform; }
-.blossoms svg { filter: drop-shadow(0 0 10px rgba(190, 186, 255, .45)); }
-.petal-layer { z-index: 6; }
+canvas.sky, canvas.dust-layer { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
+.constellation { z-index: 4; will-change: transform; }
+.constellation svg { filter: drop-shadow(0 0 8px rgba(190, 200, 255, .45)); }
+.constellation .tw { transform-box: fill-box; transform-origin: center; animation-name: twinkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.constellation .c-lines { animation: breathe 5s ease-in-out infinite; }
+@keyframes drift-float { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(4px, -6px); } }
+.dust-layer { z-index: 6; }
 
 /* ======================================================== placeholders (studio preview only) */
 .cam-placeholder {
@@ -160,6 +165,11 @@ canvas.sky, canvas.petal-layer { position: absolute; inset: 0; width: 1920px; he
 .badge.owner { color: var(--gold); }
 .badge.mod { color: #9cc2ff; }
 .badge.verified { color: #dcdcff; }
+.badge.vip { color: #ff9be0; }
+i.badge.member { color: #96ecbf; }
+.src-ico { display: inline-flex; width: 16px; height: 16px; flex: none; margin-right: 2px; vertical-align: -2px; }
+.src-ico svg { width: 100%; height: 100%; }
+.vw-plat { display: inline-flex; gap: 6px; }
 img.badge.member { border-radius: 3px; }
 
 .msg.enter { animation: msg-in .55s cubic-bezier(.2, .9, .3, 1.15) both; }
@@ -170,12 +180,19 @@ img.badge.member { border-radius: 3px; }
 @keyframes msg-out { to { opacity: 0; transform: translateX(-30px); filter: blur(6px); } }
 
 /* super chat */
-.msg.sc { flex-direction: column; gap: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+/* header and body stretch to the card width (.msg aligns to flex-start by default) */
+.msg.sc {
+  flex-direction: column; align-items: stretch; gap: 0; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,.55), 0 0 14px rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.3);
+}
 .sc-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--sc); color: #111; }
+.sc-head > div { min-width: 0; }
 .sc-head .msg-name { color: rgba(0,0,0,.72); }
 .sc-amt { font: 700 20px/1.1 var(--font); }
-.sc-body { padding: 10px 14px; font: 400 var(--chat-fs)/1.35 var(--font-th); background: color-mix(in srgb, var(--sc) 78%, #000 0%); color: #111; filter: brightness(1.12); }
-.sc-sticker { width: 96px; margin: 8px 14px; }
+.sc-body { padding: 10px 14px; font: 400 var(--chat-fs)/1.35 var(--font-th); background: color-mix(in srgb, var(--sc) 82%, #fff); color: #111; overflow-wrap: anywhere; }
+.sc-sticker { width: 96px; margin: 8px 14px; align-self: flex-start; }
+/* Twitch cheers reuse the card with a purple tint */
+.msg.sc.twitch .sc-head .msg-name, .msg.sc.twitch .sc-amt, .msg.sc.twitch .sc-body { color: #fff; }
 
 /* membership */
 .msg.member-ev { padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(60,170,120,.35), rgba(30,90,80,.35)); box-shadow: inset 0 0 0 1px rgba(150,236,191,.4); }
@@ -202,9 +219,9 @@ img.badge.member { border-radius: 3px; }
 .dc-shine { position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: shimmer 3.2s ease-in-out infinite; pointer-events: none; }
 
 /* bursts */
-.burst-petal, .burst-spark { position: absolute; z-index: 30; pointer-events: none; animation: burst 1.5s cubic-bezier(.15,.7,.3,1) forwards; }
-.burst-petal { width: 16px; height: 18px; background: #fff; border-radius: 80% 0 80% 0; box-shadow: 0 0 10px rgba(220,218,255,.9); }
-.burst-spark { width: 8px; height: 8px; border-radius: 50%; background: var(--firefly); box-shadow: 0 0 12px var(--firefly); }
+.burst-star, .burst-spark { position: absolute; z-index: 30; pointer-events: none; animation: burst 1.5s cubic-bezier(.15,.7,.3,1) forwards; }
+.burst-star { width: 22px; height: 22px; margin: -11px 0 0 -11px; background: radial-gradient(circle, #fff 30%, #dfe4ff 70%); clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%); }
+.burst-spark { width: 7px; height: 7px; border-radius: 50%; background: var(--starlight); box-shadow: 0 0 12px var(--starlight); }
 @keyframes burst { 0% { opacity: 1; transform: translate(0,0) rotate(0) scale(.4); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 80px)) rotate(var(--r)) scale(1); } }
 
 /* ======================================================== floating moon dock (starting / ending / gameplay) */

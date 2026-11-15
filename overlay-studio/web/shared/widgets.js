@@ -1,6 +1,6 @@
 // Overlay building blocks: chat, goal bar, donor tickers, timer, viewers, socials, alerts.
 (function () {
-  const { Bus, el, esc, money, money2, compact, clock, ago, initials, ICONS, SOCIAL_LABEL, params } = OS;
+  const { Bus, el, esc, money, money2, compact, clock, ago, initials, ICONS, SOCIAL_LABEL, params, viewerTotals } = OS;
   const ui = () => Bus.state.ui;
 
   const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
@@ -40,8 +40,17 @@
       if (b.owner) s += `<i class="badge owner" title="owner">${ICONS.crown}</i>`;
       if (b.moderator) s += `<i class="badge mod">${ICONS.wrench}</i>`;
       if (b.verified) s += `<i class="badge verified">${ICONS.check}</i>`;
+      if (b.vip) s += `<i class="badge vip" title="VIP">${ICONS.sparkle}</i>`;
       if (b.member && b.member_icon) s += `<img class="badge member" src="${esc(b.member_icon)}">`;
+      else if (b.member) s += `<i class="badge member" title="subscriber">${ICONS.star}</i>`;
       return s;
+    }
+
+    // Platform mark next to the name, only when both YouTube and Twitch chats are set up.
+    function srcHTML(m) {
+      const c = Bus.state.config || {};
+      if (!(c.youtube?.channel || c.youtube?.video_id) || !c.twitch?.channel) return "";
+      return `<i class="src-ico" title="${esc(m.source)}">${m.source === "twitch" ? ICONS.twitch : ICONS.youtube}</i>`;
     }
 
     function render(m) {
@@ -53,7 +62,7 @@
         node = el("div", "msg donate", `
           <div class="dc-ring"></div>
           <div class="dc-head">
-            <span class="dc-icon">${ICONS.blossom}</span>
+            <span class="dc-icon">${ICONS.sparkle}</span>
             <span class="dc-name">${esc(m.name)}</span>
             <span class="dc-amt">${money2(m.amount)}</span>
           </div>
@@ -61,17 +70,17 @@
           ${m.runs && m.runs[0] && m.runs[0].v ? `<div class="dc-msg">${runsHTML(m.runs)}</div>` : ""}
           <i class="dc-shine"></i>`);
       } else if (m.kind === "superchat" || m.kind === "sticker") {
-        node = el("div", "msg sc", `
+        node = el("div", `msg sc${m.source === "twitch" ? " twitch" : ""}`, `
           <div class="sc-head" style="--sc:${m.header_color || m.color || "rgba(255,202,40,1)"}">
             ${showAv ? avatarHTML(m.avatar, m.name, 40) : ""}
-            <div><div class="msg-name">${esc(m.name)}</div><div class="sc-amt">${esc(m.amount)}</div></div>
+            <div><div class="msg-name">${srcHTML(m)}${esc(m.name)}</div><div class="sc-amt">${esc(m.amount)}</div></div>
           </div>
           ${m.kind === "sticker" ? `<img class="sc-sticker" src="${esc(m.sticker)}">` : m.runs?.length ? `<div class="sc-body" style="--sc:${m.color || "rgba(255,202,40,1)"}">${runsHTML(m.runs)}</div>` : ""}`);
       } else if (m.kind === "member" || m.kind === "gift") {
         node = el("div", "msg member-ev", `
           ${showAv ? avatarHTML(m.avatar, m.name, 40) : ""}
           <div class="msg-body">
-            <div class="msg-head"><span class="msg-name">${esc(m.name)}</span>${badgeHTML(m)}</div>
+            <div class="msg-head">${srcHTML(m)}<span class="msg-name">${esc(m.name)}</span>${badgeHTML(m)}</div>
             <div class="me-headline">${m.kind === "gift" ? ICONS.gift : ICONS.star} ${esc(m.headline || "สมาชิกใหม่!")}</div>
             ${m.runs?.length ? `<div class="msg-text">${runsHTML(m.runs)}</div>` : ""}
           </div>`);
@@ -79,11 +88,12 @@
         node = el("div", `msg ${role}`, `
           ${showAv ? avatarHTML(m.avatar, m.name, 40) : ""}
           <div class="msg-body">
-            <div class="msg-head"><span class="msg-name">${esc(m.name)}</span>${badgeHTML(m)}</div>
+            <div class="msg-head">${srcHTML(m)}<span class="msg-name">${esc(m.name)}</span>${badgeHTML(m)}</div>
             <div class="msg-text">${runsHTML(m.runs)}</div>
           </div>`);
       }
       node.dataset.id = m.id;
+      node.dataset.source = m.source || "";
       return node;
     }
 
@@ -124,7 +134,10 @@
     Bus.on("hello", (d) => { list.innerHTML = ""; ids.clear(); applyStyle(); add(d.chat.slice(-(ui().chat.max || 30)), false); });
     Bus.on("chat", (d) => add(d.items, true));
     Bus.on("chat_remove", (d) => remove(d.id));
-    Bus.on("chat_clear", () => { list.innerHTML = ""; ids.clear(); });
+    Bus.on("chat_clear", (d) => {
+      if (!d?.source) { list.innerHTML = ""; ids.clear(); return; }
+      for (const n of [...list.children]) if (n.dataset.source === d.source) { ids.delete(n.dataset.id); n.remove(); }
+    });
     Bus.on("config", applyStyle);
 
     return { add, root, lastReal: () => lastReal };
@@ -146,14 +159,14 @@
     root.classList.add("goal", "goal-" + variant);
     root.innerHTML = `
       <div class="goal-top">
-        <span class="goal-icon">${ICONS.blossom}</span>
+        <span class="goal-icon">${ICONS.sparkle}</span>
         <span class="goal-title"></span>
         <span class="goal-pct">0%</span>
       </div>
       <div class="goal-track">
         <div class="goal-fill"><i class="goal-shine"></i></div>
-        ${[25, 50, 75].map((p) => `<i class="tick" data-at="${p}" style="left:${p}%">${ICONS.blossom}</i>`).join("")}
-        <i class="goal-tip">${ICONS.blossom}</i>
+        ${[25, 50, 75].map((p) => `<i class="tick" data-at="${p}" style="left:${p}%">${ICONS.sparkle}</i>`).join("")}
+        <i class="goal-tip">${ICONS.sparkle}</i>
       </div>
       <div class="goal-foot"><span class="goal-end"></span><div class="goal-amt"><b class="goal-cur">฿0.00</b><span class="goal-sep">/</span><span class="goal-target">฿0</span></div></div>`;
     const $ = (s) => root.querySelector(s);
@@ -264,16 +277,21 @@
   // ---------------------------------------------------------------- viewers / socials
   function Viewers(root) {
     root.classList.add("viewers");
-    root.innerHTML = `<div class="tiny-label vw-label"><i class="live-dot"></i>VIEWERS</div><div class="vw-row"><span class="vw-eye">${ICONS.eye}</span><b class="vw-num">—</b><span class="vw-yt">${ICONS.youtube}</span></div>`;
-    const num = root.querySelector(".vw-num");
+    root.innerHTML = `<div class="tiny-label vw-label"><i class="live-dot"></i>VIEWERS</div><div class="vw-row"><span class="vw-eye">${ICONS.eye}</span><b class="vw-num">—</b><span class="vw-plat"></span></div>`;
+    const num = root.querySelector(".vw-num"), plat = root.querySelector(".vw-plat");
     let cur = null;
-    Bus.on("live", (l) => {
-      root.classList.toggle("is-live", l.state === "live");
-      if (l.viewers == null) { num.textContent = "—"; cur = null; return; }
-      if (cur == null) num.textContent = compact(l.viewers);
-      else tweenNumber(num, cur, l.viewers, (v) => compact(Math.round(v)), 900);
-      cur = l.viewers;
-    });
+    // YouTube + Twitch viewers added together, with the icon of each platform counted.
+    const update = () => {
+      const v = viewerTotals();
+      root.classList.toggle("is-live", v.live);
+      plat.innerHTML = (v.parts.length ? v.parts : ["youtube"]).map((p) => `<span class="vw-yt" title="${p}">${ICONS[p]}</span>`).join("");
+      root.title = v.parts.length > 1 ? `YouTube ${compact(v.yt)} · Twitch ${compact(v.tw)}` : "";
+      if (v.total == null) { num.textContent = "—"; cur = null; return; }
+      if (cur == null) num.textContent = compact(v.total);
+      else if (cur !== v.total) tweenNumber(num, cur, v.total, (x) => compact(Math.round(x)), 900);
+      cur = v.total;
+    };
+    Bus.on("live", update).on("twitch", update);
   }
 
   function Socials(root, { all = false } = {}) {
@@ -304,7 +322,7 @@
   // A rounded capsule (not a full-width bar) holding any of: top, latest, viewers, socials.
   function Dock(root, { parts = ["top", "latest", "viewers", "socials"] } = {}) {
     root.classList.add("dock");
-    const div = `<i class="dk-div">${ICONS.blossom}</i>`;
+    const div = `<i class="dk-div">${ICONS.sparkle}</i>`;
     root.innerHTML = `<span class="dk-moon"><i></i></span>` + parts.map((p) => `<div class="dk-seg dk-${p}"></div>`).join(div);
     const q = (p) => root.querySelector(".dk-" + p);
     if (parts.includes("top")) Ticker(q("top"), { kind: "top", label: "TOP DONATE" });
@@ -329,7 +347,10 @@
       root.querySelector(".np-name span").textContent = p.tagline || "";
       root.querySelector(".np-label").textContent = label();
     });
-    if (viewers) Bus.on("live", (l) => { root.querySelector(".np-vw b").textContent = l.viewers == null ? "—" : compact(l.viewers); });
+    if (viewers) {
+      const update = () => { const v = viewerTotals(); root.querySelector(".np-vw b").textContent = v.total == null ? "—" : compact(v.total); };
+      Bus.on("live", update).on("twitch", update);
+    }
   }
 
   // ---------------------------------------------------------------- alerts
@@ -361,7 +382,7 @@
       busy = true;
       const d = q.shift();
       const card = el("div", "alert-card", `
-        <div class="ac-burst">${ICONS.blossom}</div>
+        <div class="ac-burst">${ICONS.sparkle}</div>
         <div class="ac-body">
           <div class="ac-top"><span class="ac-name">${esc(d.name)}</span><span class="ac-verb">โดเนท</span><span class="ac-amt">${money2(d.amount)}</span></div>
           ${d.message ? `<div class="ac-msg">${esc(d.message)}</div>` : ""}
@@ -389,7 +410,7 @@
   function startDemo(chat) {
     const S = Bus.state;
     const people = [
-      ["@SrBoyCH", "สวัสดีครับพี่ 👋"], ["@Oomehai", "มาแล้วววว 🌸"], ["@tonpaanXD_16", "หนูออม"], ["@GetTH", "วันนี้เล่นอะไรครับ"],
+      ["@SrBoyCH", "สวัสดีครับพี่ 👋"], ["@Oomehai", "มาแล้วววว 🌟"], ["@tonpaanXD_16", "หนูออม"], ["@GetTH", "วันนี้เล่นอะไรครับ"],
       ["@moonlit.void", "ธีมสวยมากกก ✨"], ["@samsung_s23", "ไลฟ์ยาวไหมครับวันนี้"], ["@ไอ้ผมแดง", "สวัสดีครับ"], ["@Berryy_R27", "พรุ่งนี้เปิดเทอมแล้ว 😭"],
       ["@nightowl", "ฟังเพลงไปด้วยชิลมาก"], ["@kanomkrok", "ขอเพลงหน่อยครับ"],
     ];
@@ -416,7 +437,7 @@
         timer: d.timer || { remaining_ms: 5524000, running: false, fetched_at: Date.now() },
       };
       Bus.fire("donate_state", fake);
-      if (S.live.viewers == null) Bus.fire("live", { ...S.live, state: "live", viewers: 357 });
+      if (S.live.viewers == null) { S.live = { ...S.live, state: "live", viewers: 357 }; Bus.fire("live", S.live); }
     });
     let i = 6;
     setInterval(() => {

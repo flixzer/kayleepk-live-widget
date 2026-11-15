@@ -100,6 +100,14 @@
   };
   const params = new URLSearchParams(location.search);
 
+  // Viewer count across platforms: YouTube (live state) + Twitch while it is live.
+  function viewerTotals(S = Bus.state) {
+    const yt = S.live?.viewers ?? null;
+    const tw = S.twitch?.state === "live" ? S.twitch.viewers ?? null : null;
+    const parts = [yt != null && "youtube", tw != null && "twitch"].filter(Boolean);
+    return { total: parts.length ? (yt || 0) + (tw || 0) : null, yt, tw, parts, live: S.live?.state === "live" || S.twitch?.state === "live" };
+  }
+
   // Scale a fixed 1920×1080 stage to fit the viewport (letterboxed).
   function fitStage(stage, w = 1920, h = 1080) {
     const fit = () => {
@@ -116,7 +124,7 @@
   const handlers = {};
   const Bus = {
     state: {
-      config: null, ui: clone(DEFAULT_UI), live: {}, ed_status: {},
+      config: null, ui: clone(DEFAULT_UI), live: {}, twitch: {}, ed_status: {},
       donate: { top: [], latest: [], goal: null, timer: null }, chat: [], connected: false,
     },
     on(name, fn) { (handlers[name] ||= []).push(fn); return Bus; },
@@ -126,19 +134,20 @@
       const S = Bus.state;
       es.addEventListener("hello", (e) => {
         const d = JSON.parse(e.data);
-        S.config = d.config; S.ui = normalizeUI(d.config.ui); S.live = d.live; S.donate = d.donate;
+        S.config = d.config; S.ui = normalizeUI(d.config.ui); S.live = d.live; S.twitch = d.twitch || {}; S.donate = d.donate;
         S.chat = d.chat; S.ed_status = d.ed_status; S.countdown = d.countdown; S.port = d.port; S.port_fallback = d.port_fallback; S.connected = true;
-        Bus.fire("config", S.config); Bus.fire("live", S.live); Bus.fire("donate_state", S.donate);
+        Bus.fire("config", S.config); Bus.fire("live", S.live); Bus.fire("twitch", S.twitch); Bus.fire("donate_state", S.donate);
         Bus.fire("ed_status", S.ed_status); Bus.fire("hello", d);
       });
       const simple = {
         config: (d) => { S.config = d; S.ui = normalizeUI(d.ui); },
         live: (d) => { S.live = d; },
+        twitch: (d) => { S.twitch = d; },
         donate_state: (d) => { S.donate = d; },
         ed_status: (d) => { S.ed_status = d; },
         chat: (d) => { S.chat = S.chat.concat(d.items).slice(-150); },
         chat_remove: (d) => { S.chat = S.chat.filter((m) => m.id !== d.id); },
-        chat_clear: () => { S.chat = []; },
+        chat_clear: (d) => { S.chat = d.source ? S.chat.filter((m) => m.source !== d.source) : []; },
         donation: () => {},
         update: (d) => { S.update = d; },
         countdown: (d) => { S.countdown = d; },
@@ -167,11 +176,11 @@
     wrench: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M22.7 19 13.6 9.9a6 6 0 0 0-7.9-7.6l3.9 3.9-2.8 2.8-4-3.9a6 6 0 0 0 7.6 7.9l9.1 9.1a1 1 0 0 0 1.4 0l1.8-1.8a1 1 0 0 0 0-1.4z"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.5 14.6 4l3.6-.4.9 3.5 3.2 1.8-1.4 3.3 1.4 3.3-3.2 1.8-.9 3.5-3.6-.4L12 22.5 9.4 20l-3.6.4-.9-3.5-3.2-1.8L3.1 12 1.7 8.7l3.2-1.8.9-3.5 3.6.4zm-1.3 13.7 6-6-1.4-1.4-4.6 4.6-2.3-2.3L7 11.5z"/></svg>',
     star: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 2.9 6.6 7.1.7-5.4 4.8 1.6 7L12 17.5 5.8 21l1.6-7L2 9.3l7.1-.7z"/></svg>',
-    blossom: '<svg viewBox="0 0 24 24"><g fill="currentColor">' +
-      [0, 72, 144, 216, 288].map((r) => `<path transform="rotate(${r} 12 12)" d="M12 11.5C9.6 9 9.4 5.2 10.6 3.4c.5.7 1 1 1.4.6.4.4.9.1 1.4-.6 1.2 1.8 1 5.6-1.4 8.1z"/>`).join("") +
-      '</g><circle cx="12" cy="12" r="1.8" fill="#9aa4ff"/></svg>',
+    // Four-point twinkle star.
+    sparkle: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 1Q14.2 9.8 23 12Q14.2 14.2 12 23Q9.8 14.2 1 12Q9.8 9.8 12 1Z"/>' +
+      '<circle cx="12" cy="12" r="1.5" fill="#b9c4ff"/></svg>',
   };
   const SOCIAL_LABEL = { youtube: "YOUTUBE", facebook: "FACEBOOK", tiktok: "TIKTOK", instagram: "INSTAGRAM", x: "X", twitch: "TWITCH", discord: "DISCORD" };
 
-  window.OS = { DEFAULT_UI, normalizeUI, deepMerge, clone, esc, el, money, money2, compact, clock, ago, initials, params, fitStage, Bus, ICONS, SOCIAL_LABEL };
+  window.OS = { DEFAULT_UI, normalizeUI, deepMerge, clone, esc, el, money, money2, compact, clock, ago, initials, params, fitStage, Bus, ICONS, SOCIAL_LABEL, viewerTotals };
 })();

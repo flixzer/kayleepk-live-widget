@@ -23,6 +23,8 @@ pub struct AppState {
     pub chat: Mutex<VecDeque<Value>>,
     /// {state, video_id, title, channel, viewers, thumbnail, message}
     pub live: Mutex<Value>,
+    /// {state, channel, display_name, avatar, title, game, viewers, chat, message}
+    pub twitch: Mutex<Value>,
     /// {top, latest, goal, timer}
     pub donate: Mutex<Value>,
     /// {state, message, account}
@@ -34,6 +36,7 @@ pub struct AppState {
     /// Starting-scene countdown driven by the studio buttons: {running, end_at, remaining_ms}
     pub countdown: Mutex<Value>,
     pub yt_restart: Notify,
+    pub tw_restart: Notify,
     pub ed_restart: Notify,
 }
 
@@ -51,12 +54,14 @@ impl AppState {
             tx,
             chat: Mutex::new(VecDeque::new()),
             live: Mutex::new(json!({"state": "idle"})),
+            twitch: Mutex::new(json!({"state": "idle"})),
             donate: Mutex::new(json!({"top": [], "latest": [], "goal": null, "timer": null})),
             ed_status: Mutex::new(json!({"state": "off"})),
             ed_raw: Mutex::new(Map::new()),
             update: Mutex::new(json!({"state": "off", "version": crate::updater::VERSION})),
             countdown: Mutex::new(json!({"running": false, "end_at": null, "remaining_ms": null})),
             yt_restart: Notify::new(),
+            tw_restart: Notify::new(),
             ed_restart: Notify::new(),
         })
     }
@@ -87,6 +92,9 @@ impl AppState {
         if old.youtube != new_cfg.youtube {
             self.yt_restart.notify_waiters();
         }
+        if old.twitch != new_cfg.twitch {
+            self.tw_restart.notify_waiters();
+        }
         if old.easydonate != new_cfg.easydonate {
             self.ed_restart.notify_waiters();
         }
@@ -111,6 +119,25 @@ impl AppState {
     pub fn set_live(&self, v: Value) {
         *self.live.lock().unwrap() = v.clone();
         self.emit("live", &v);
+    }
+
+    /// Merge `patch` into the Twitch status object and broadcast it.
+    pub fn patch_twitch(&self, patch: Value) {
+        let snapshot = {
+            let mut tw = self.twitch.lock().unwrap();
+            if let (Some(t), Some(p)) = (tw.as_object_mut(), patch.as_object()) {
+                for (k, v) in p {
+                    t.insert(k.clone(), v.clone());
+                }
+            }
+            tw.clone()
+        };
+        self.emit("twitch", &snapshot);
+    }
+
+    pub fn set_twitch(&self, v: Value) {
+        *self.twitch.lock().unwrap() = v.clone();
+        self.emit("twitch", &v);
     }
 
     pub fn push_chat(&self, items: Vec<Value>) {
@@ -139,6 +166,27 @@ impl AppState {
         self.emit("chat_clear", &json!({}));
     }
 
+    /// Drop the messages of one platform ("youtube" / "twitch"), keeping the others.
+    pub fn clear_chat_source(&self, source: &str) {
+        self.chat.lock().unwrap().retain(|m| m["source"].as_str() != Some(source));
+        self.emit("chat_clear", &json!({ "source": source }));
+    }
+
+    /// Remove every message from one author on one platform (bans / timeouts).
+    pub fn remove_chat_by_author(&self, source: &str, author_id: &str) {
+        let ids: Vec<String> = self
+            .chat
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| m["source"].as_str() == Some(source) && m["channel_id"].as_str() == Some(author_id))
+            .filter_map(|m| m["id"].as_str().map(String::from))
+            .collect();
+        for id in ids {
+            self.remove_chat(&id);
+        }
+    }
+
     pub fn set_donate(&self, key: &str, value: Value) {
         let snapshot = {
             let mut d = self.donate.lock().unwrap();
@@ -157,6 +205,7 @@ impl AppState {
         json!({
             "config": self.public_config(),
             "live": self.live.lock().unwrap().clone(),
+            "twitch": self.twitch.lock().unwrap().clone(),
             "donate": self.donate.lock().unwrap().clone(),
             "ed_status": self.ed_status.lock().unwrap().clone(),
             "chat": self.chat.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
